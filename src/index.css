@@ -27,9 +27,9 @@
 
 /* ---------- Theme variables (set by JS, contrast-checked) ---------- */
 :root {
-  --status-bar-height: 0px;
-  --safe-top: max(env(safe-area-inset-top, 0px), var(--status-bar-height, 0px));
-  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+  --status-bar-height: 44px;
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--status-bar-height, 44px));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 12px);
   --safe-left: max(env(safe-area-inset-left, 0px), 0px);
   --safe-right: max(env(safe-area-inset-right, 0px), 0px);
   --bg: #ffffff;

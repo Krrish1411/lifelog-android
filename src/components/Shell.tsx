@@ -1,23 +1,56 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Calendar, Check, FileClock, FileText, Flame, LayoutDashboard, ListTodo,
-  Menu, Pause, PenLine, Play, Plus, Quote, Settings, SlidersHorizontal, Square, Timer, X, Search,
-} from "lucide-react";
-import type { TokenKey, ViewId } from "../types";
-import { FONT_PAIRS, QUOTES, SHORTCUT_ACTIONS } from "../types";
-import { useApp } from "./../store";
 import {
-  ensureContrast, fmtDateLong, fmtDur, fmtHMS, greetingFor, mix, normalizeHex,
-  readableOn, sessionSeconds, streakStats, todayIso, trackedByDay,
+  BarChart3,
+  Calendar,
+  Check,
+  FileClock,
+  FileText,
+  Flame,
+  LayoutDashboard,
+  ListTodo,
+  Menu,
+  Moon,
+  Pause,
+  PenLine,
+  Play,
+  Plus,
+  Quote,
+  Search,
+  Settings,
+  Square,
+  Sun,
+  Timer,
+} from "lucide-react";
+import type { Priority, TokenKey, ViewId } from "../types";
+import { FONT_PAIRS, QUOTES } from "../types";
+import { useApp } from "../store";
+import {
+  ensureContrast,
+  fmtDateLong,
+  fmtDur,
+  fmtHMS,
+  greetingFor,
+  mix,
+  normalizeHex,
+  readableOn,
+  sessionSeconds,
+  todayIso,
 } from "../utils/core";
 import { playTimerChime } from "../utils/audio";
 import { CUSTOM_FONT_FAMILY } from "../utils/fonts";
-import { Btn, Modal, TextInput, Toggle, cn } from "./ui";
+import { Btn, Modal, TextInput, cn } from "./ui";
 import { TaskDialog } from "./TaskDialog";
 import { CommandPalette } from "./CommandPalette";
 import { LiveAnnouncer } from "./LiveAnnouncer";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileMoreSheet } from "./MobileMoreSheet";
-import { initHardwareBackButton, configureStatusBar, initNativeSystemBars } from "../utils/native";
+import { MobileDrawer } from "./MobileDrawer";
+import {
+  initHardwareBackButton,
+  configureStatusBar,
+  initNativeSystemBars,
+  triggerHaptic,
+} from "../utils/native";
 import { Dashboard } from "../views/Dashboard";
 import { TasksView } from "../views/Tasks";
 import { FocusView } from "../views/Focus";
@@ -65,44 +98,31 @@ export const NAV_SECTIONS: NavSection[] = [
 
 export const ALL_NAV = NAV_SECTIONS.flatMap((s) => s.items);
 
-function Clock({ compact = false }: { compact?: boolean }) {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-  const p = (n: number) => String(n).padStart(2, "0");
-  if (compact) {
-    return (
-      <div className="text-center font-mono text-[12px] font-semibold tnum" style={{ color: "var(--mut)" }}>
-        <div style={{ color: "var(--text)" }}>{p(now.getHours())}:{p(now.getMinutes())}</div>
-        <div className="text-[10px]">{p(now.getSeconds())}</div>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-baseline gap-2.5">
-      <span className="font-mono text-[17px] font-semibold tnum" style={{ color: "var(--text)" }}>
-        {p(now.getHours())}:{p(now.getMinutes())}
-        <span style={{ color: "var(--mut)" }}>:{p(now.getSeconds())}</span>
-      </span>
-      <span className="text-[12px] font-semibold" style={{ color: "var(--mut)" }}>{fmtDateLong(now)}</span>
-    </div>
-  );
-}
-
 function Logo({ small = false }: { small?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-2">
       <svg width={small ? 26 : 30} height={small ? 26 : 30} viewBox="0 0 32 32" aria-hidden>
         <rect width="32" height="32" rx="9" fill="var(--panel2)" stroke="var(--line)" />
-        <circle cx="16" cy="16" r="9" fill="none" stroke="var(--accent)" strokeWidth="3" strokeLinecap="round" strokeDasharray="42 15" transform="rotate(-90 16 16)" />
+        <circle
+          cx="16"
+          cy="16"
+          r="9"
+          fill="none"
+          stroke="var(--accent)"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray="42 15"
+          transform="rotate(-90 16 16)"
+        />
         <circle cx="16" cy="16" r="3" fill="var(--accent)" />
       </svg>
       {!small && (
         <div className="leading-none">
           <div className="font-display text-[16px] font-bold tracking-tight">LifeLog</div>
-          <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--mut)" }}>
+          <div
+            className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em]"
+            style={{ color: "var(--mut)" }}
+          >
             your day, remembered
           </div>
         </div>
@@ -111,26 +131,16 @@ function Logo({ small = false }: { small?: boolean }) {
   );
 }
 
-const TOKEN_DEFAULTS: Record<TokenKey, { dark: string; light: string }> = {
-  text: { dark: "#e8efe9", light: "#182019" },
-  mut: { dark: "#8fa396", light: "#5c6a60" },
-  panel: { dark: "#16211c", light: "#ffffff" },
-  panel2: { dark: "#1d2b24", light: "#f7faf7" },
-  line: { dark: "#26382f", light: "#d7ded8" },
-  ok: { dark: "#6fbf8e", light: "#3e8f60" },
-  warn: { dark: "#e0b457", light: "#a67c1f" },
-  danger: { dark: "#d66853", light: "#b23c28" },
-};
-
 /* ================================================================ */
 export function Shell() {
   const app = useApp();
-  const { state, set, view, setView, openTaskDialog } = app;
-  const layout = state.settings.layout;
+  const { state, set, view, setView, openTaskDialog, toast } = app;
   const [greeting, setGreeting] = useState(false);
-  const [zenConfig, setZenConfig] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<
+    "inbox" | "today" | "all" | { project: string } | { tag: string } | { priority: Priority }
+  >("today");
 
   // Android Native Status Bar & System Bars Sync
   useEffect(() => {
@@ -157,7 +167,7 @@ export function Shell() {
     }
   }, [view]);
 
-  /* ---------- theme variables: every token customisable, contrast-checked ---------- */
+  /* ---------- theme variables: customisable, contrast-checked ---------- */
   useEffect(() => {
     const s = state.settings;
     const dark = s.themeMode === "dark";
@@ -173,7 +183,6 @@ export function Shell() {
       danger: dark ? "#d66853" : "#b23c28",
     };
     derived.mut = mix(derived.text, bg, 0.45);
-    // user overrides win, then contrast guards keep text readable
     (Object.keys(derived) as TokenKey[]).forEach((k) => {
       const o = s.tokens[k];
       if (o && normalizeHex(o)) derived[k] = normalizeHex(o)!;
@@ -191,7 +200,6 @@ export function Shell() {
     root.style.setProperty("--on-accent", readableOn(accent));
     root.style.setProperty("--ring", `color-mix(in srgb, ${accent} 32%, transparent)`);
     root.style.setProperty("--accent-soft", `color-mix(in srgb, ${accent} 14%, transparent)`);
-    /* zoom + font (applies to ALL text: body, headings, user content) */
     root.style.setProperty("--uizoom", String(Math.max(1, Math.min(2, s.uiZoom / 100))));
     const fam = s.customFontName
       ? `'${CUSTOM_FONT_FAMILY}', sans-serif`
@@ -200,9 +208,7 @@ export function Shell() {
     root.style.setProperty("--font-display", fam);
     document.body.style.fontFamily = fam;
     root.dataset.theme = dark ? "dark" : "light";
-    root.dataset.engine = s.layout;
     root.style.background = bg;
-    /* Accessibility settings */
     root.dataset.reduceMotion = String(s.reduceMotion);
     root.dataset.reduceTransparency = String(s.reduceTransparency);
     root.dataset.highContrast = String(s.highContrast);
@@ -212,14 +218,13 @@ export function Shell() {
   useEffect(() => {
     const today = todayIso();
     if (state.settings.greeting === "every" || state.meta.lastGreetingDay !== today) setGreeting(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const closeGreeting = () => {
     setGreeting(false);
     set((s) => ({ ...s, meta: { ...s.meta, lastGreetingDay: todayIso() } }));
   };
 
-  /* ---------- global session watchdog: finish countdowns wherever you are ---------- */
+  /* ---------- global session watchdog ---------- */
   useEffect(() => {
     const t = setInterval(() => {
       const running = state.sessions.find((s) => s.status === "running");
@@ -229,36 +234,58 @@ export function Shell() {
           ...st,
           sessions: st.sessions.map((x) =>
             x.id === running.id
-              ? { ...x, endedAt: Date.now(), status: "done", pauses: x.pauses.map((p) => (p.resumeAt ? p : { ...p, resumeAt: Date.now() })) }
-              : x,
+              ? {
+                  ...x,
+                  endedAt: Date.now(),
+                  status: "done",
+                  pauses: x.pauses.map((p) => (p.resumeAt ? p : { ...p, resumeAt: Date.now() })),
+                }
+              : x
           ),
         }));
         playTimerChime(running.mode === "break" ? "break" : "complete");
         if (state.settings.notifyEnabled && "Notification" in window && Notification.permission === "granted") {
           try {
             new Notification(running.mode === "break" ? "Break Finished" : "LifeLog Timer Complete", {
-              body: running.mode === "break" ? "Break is over — ready to focus again." : "Focus session finished and saved to your log.",
+              body:
+                running.mode === "break"
+                  ? "Break is over — ready to focus again."
+                  : "Focus session finished and saved to your log.",
             });
           } catch {}
         }
-        app.toast(running.mode === "break" ? "Break over — back to it" : "Timer complete — session saved to your log", "warn");
+        app.toast(
+          running.mode === "break" ? "Break over — back to it" : "Timer complete — session saved to your log",
+          "warn"
+        );
       }
     }, 1000);
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.sessions, state.settings.notifyEnabled]);
 
-  const today = todayIso();
-  const dueToday = useMemo(
-    () => state.tasks.filter((t) => !t.done && t.due && t.due <= today && (!t.snoozedUntil || t.snoozedUntil <= Date.now())).length,
-    [state.tasks, today],
-  );
-  const tracked = useMemo(() => trackedByDay(state.sessions), [state.sessions]);
-  const bestStreak = useMemo(() => Math.max(0, ...state.habits.map((h) => streakStats(h.completions).current)), [state.habits]);
+  const toggleTheme = () => {
+    triggerHaptic("light");
+    const next = state.settings.themeMode === "dark" ? "light" : "dark";
+    set((s) => ({ ...s, settings: { ...s.settings, themeMode: next } }));
+    toast(`Switched to ${next} mode`, "ok");
+  };
+
+  const selectedTaskFilterKey = useMemo(() => {
+    if (typeof taskFilter === "string") return taskFilter;
+    if ("project" in taskFilter) return `p:${taskFilter.project}`;
+    if ("tag" in taskFilter) return `t:${taskFilter.tag}`;
+    return `pr:${taskFilter.priority}`;
+  }, [taskFilter]);
 
   const views: Record<ViewId, React.ReactNode> = {
-    dashboard: layout === "zen" ? <ZenHome /> : <Dashboard />,
-    tasks: <TasksView />,
+    dashboard: <Dashboard />,
+    tasks: (
+      <TasksView
+        filter={taskFilter}
+        onFilterChange={setTaskFilter}
+        onOpenDrawer={() => setMobileNavOpen(true)}
+      />
+    ),
     focus: <FocusView />,
     calendar: <CalendarView />,
     habits: <HabitsView />,
@@ -279,549 +306,123 @@ export function Shell() {
     );
   }
 
-  const navButton = (n: (typeof ALL_NAV)[number], opts: { iconOnly?: boolean; horizontal?: boolean } = {}) => {
-    const active = view === n.id;
-    const Icon = n.icon;
-    if (opts.iconOnly) {
-      return (
-        <button
-          key={n.id}
-          onClick={() => setView(n.id)}
-          title={n.label}
-          className="group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all"
-          style={active ? { background: "var(--accent-soft)", color: "var(--accent)" } : { color: "var(--mut)", cursor: "pointer" }}
-        >
-          <Icon size={17} />
-          {active && <span className="absolute -left-2.5 h-5 w-[3px] rounded-full" style={{ background: "var(--accent)" }} />}
-          <span className="pointer-events-none absolute left-[52px] z-50 hidden whitespace-nowrap rounded-lg border px-2 py-1 text-[11px] font-bold group-hover:block"
-            style={{ background: "var(--panel2)", borderColor: "var(--line)", color: "var(--text)" }}>
-            {n.label}
-          </span>
-        </button>
-      );
-    }
-    return (
-      <button
-        key={n.id}
-        onClick={() => setView(n.id)}
-        className={cn(
-          "flex items-center gap-2.5 font-bold transition-all",
-          opts.horizontal ? "rounded-lg px-2.5 py-1.5 text-[12.5px]" : "w-full rounded-xl px-3 py-2 text-[13px]",
-        )}
-        style={active ? { background: "var(--accent-soft)", color: "var(--accent)" } : { color: "var(--mut)", cursor: "pointer" }}
-        onMouseEnter={(e) => { if (!active) e.currentTarget.style.color = "var(--text)"; }}
-        onMouseLeave={(e) => { if (!active) e.currentTarget.style.color = "var(--mut)"; }}
-      >
-        <Icon size={16} />
-        <span>{n.label}</span>
-        {n.id === "tasks" && dueToday > 0 && !opts.horizontal && (
-          <span className="ml-auto rounded-full px-1.5 py-px font-mono text-[10.5px] font-bold tnum" style={{ background: "var(--accent)", color: "var(--on-accent)" }}>
-            {dueToday}
-          </span>
-        )}
-      </button>
-    );
-  };
+  const activeNavLabel = ALL_NAV.find((n) => n.id === view)?.label ?? "LifeLog";
 
-  const mobileBar = (
-    <header
-      className="sticky top-0 z-30 flex flex-col border-b md:hidden select-none transition-colors"
-      style={{
-        background: "var(--panel)",
-        borderColor: "var(--line)",
-        paddingTop: "var(--safe-top)",
-      }}
-    >
-      <div className="flex h-14 items-center justify-between px-3.5">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setMobileNavOpen((v) => !v)}
-            className="rounded-xl p-2 transition-colors hover:bg-[var(--panel2)] active:scale-95 cursor-pointer"
-            style={{ color: "var(--text)" }}
-            aria-label="Toggle navigation"
-          >
-            {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-          <Logo small />
-          <span className="font-display text-[15px] font-bold truncate max-w-[130px] sm:max-w-[200px]">
-            {ALL_NAV.find((n) => n.id === view)?.label ?? view}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => setPaletteOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border transition-transform active:scale-95 cursor-pointer"
-            style={{ borderColor: "var(--line)", color: "var(--mut)", background: "var(--panel2)" }}
-            title="Command Palette"
-            aria-label="Command Palette"
-          >
-            <Search size={15} />
-          </button>
-          <Clock compact />
-          <button
-            onClick={() => openTaskDialog()}
-            className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform active:scale-95 cursor-pointer"
-            style={{ background: "var(--accent)", color: "var(--on-accent)" }}
-            title="New task"
-          >
-            <Plus size={17} strokeWidth={2.5} />
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-
-  const mobileDrawer = mobileNavOpen && (
-    <div
-      className="fixed inset-0 z-50 flex md:hidden"
-      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
-      onClick={() => setMobileNavOpen(false)}
-    >
-      <aside
-        className="flex h-full w-[280px] max-w-[85vw] flex-col border-r p-4 shadow-2xl"
+  return (
+    <div className="relative min-h-screen w-full max-w-full overflow-x-hidden">
+      {/* 1. Fixed Top Native App Bar (guaranteed below camera notch & status bar) */}
+      <header
+        className="fixed top-0 inset-x-0 z-40 flex flex-col border-b select-none transition-colors"
         style={{
           background: "var(--panel)",
           borderColor: "var(--line)",
-          paddingTop: "max(calc(var(--safe-top) + 12px), 16px)",
-          paddingBottom: "max(var(--safe-bottom), 16px)",
+          paddingTop: "var(--safe-top)",
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
-          <Logo />
-          <button
-            onClick={() => setMobileNavOpen(false)}
-            className="rounded-lg p-1.5"
-            style={{ color: "var(--mut)" }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <nav className="mt-5 flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
-          {NAV_SECTIONS.map((sec) => (
-            <div key={sec.title} className="flex flex-col gap-1">
-              <div className="px-3 pt-2 text-[10.5px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--mut)" }}>
-                {sec.title}
-              </div>
-              {sec.items.map((n) => (
-                <div key={n.id} onClick={() => setMobileNavOpen(false)}>
-                  {navButton(n)}
-                </div>
-              ))}
-            </div>
-          ))}
-        </nav>
-        <div className="mt-auto border-t pt-3" style={{ borderColor: "var(--line)" }}>
-          <Btn variant="primary" className="w-full" onClick={() => { setMobileNavOpen(false); openTaskDialog(); }}>
-            <Plus size={14} /> New task
-          </Btn>
-        </div>
-      </aside>
-    </div>
-  );
-
-  /* ============================ PLANIFY ENGINE (icon rail) ============================ */
-  if (layout === "planify") {
-    return (
-      <div className="relative min-h-screen">
-        {mobileBar}
-        {mobileDrawer}
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-[74px] flex-col items-center gap-1.5 border-r py-5 md:flex md:w-[84px]"
-          style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-          <Logo small />
-          <div className="mt-4 flex w-full flex-col items-center gap-1 px-2">
-            {NAV_SECTIONS.map((sec, sIdx) => (
-              <div key={sec.title} className="flex w-full flex-col items-center gap-1">
-                {sIdx > 0 && <div className="my-1.5 w-6 border-b" style={{ borderColor: "var(--line)" }} />}
-                {sec.items.map((n) => navButton(n, { iconOnly: true }))}
-              </div>
-            ))}
+        <div className="flex h-14 items-center justify-between px-3.5">
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("light");
+                setMobileNavOpen(true);
+              }}
+              className="rounded-xl p-2 transition-colors hover:bg-[var(--panel2)] active:scale-95 cursor-pointer text-[var(--text)]"
+              aria-label="Open navigation drawer"
+            >
+              <Menu size={20} />
+            </button>
+            <Logo small />
+            <span className="font-display text-[16px] font-bold truncate max-w-[140px] sm:max-w-[220px] text-[var(--text)]">
+              {activeNavLabel}
+            </span>
           </div>
-          <div className="mt-auto flex flex-col items-center gap-3">
-            <Clock compact />
-            <button onClick={() => openTaskDialog()} className="flex h-9 w-9 items-center justify-center rounded-full transition-transform hover:scale-105"
-              style={{ background: "var(--accent)", color: "var(--on-accent)", cursor: "pointer" }} title="New task">
-              <Plus size={17} />
+
+          <div className="flex items-center gap-1.5">
+            {/* Theme quick toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border transition-transform active:scale-95 cursor-pointer"
+              style={{ borderColor: "var(--line)", color: "var(--mut)", background: "var(--panel2)" }}
+              title="Toggle dark/light theme"
+              aria-label="Toggle theme"
+            >
+              {state.settings.themeMode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+
+            {/* Search / Palette */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("light");
+                setPaletteOpen(true);
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-xl border transition-transform active:scale-95 cursor-pointer"
+              style={{ borderColor: "var(--line)", color: "var(--mut)", background: "var(--panel2)" }}
+              title="Search"
+              aria-label="Search"
+            >
+              <Search size={15} />
+            </button>
+
+            {/* Quick Add Task */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("medium");
+                openTaskDialog();
+              }}
+              className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform active:scale-95 cursor-pointer shadow-xs"
+              style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+              title="New task"
+              aria-label="New task"
+            >
+              <Plus size={17} strokeWidth={2.5} />
             </button>
           </div>
-        </aside>
-        <main className="zoomable ml-0 w-full max-w-full overflow-x-hidden px-4 pt-4 pb-32 md:ml-[84px] md:w-[calc(100%-84px)] md:px-6 md:py-6">
-          <div className="w-full">{views[view]}</div>
-        </main>
-        <Overlays greeting={greeting} closeGreeting={closeGreeting} paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
-        <MiniTimer />
-      </div>
-    );
-  }
-
-  /* ============================ CONTROL ENGINE (command bar + status bar) ============================ */
-  if (layout === "control") {
-    return (
-      <div className="relative flex min-h-screen flex-col">
-        {mobileBar}
-        {mobileDrawer}
-        <header className="sticky top-0 z-40 hidden h-[52px] items-center gap-4 border-b px-4 md:flex"
-          style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-          <Logo small />
-          <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
-            {NAV_SECTIONS.map((sec, sIdx) => (
-              <div key={sec.title} className="flex items-center gap-1">
-                {sIdx > 0 && <div className="mx-1.5 h-4 border-r" style={{ borderColor: "var(--line)" }} />}
-                {sec.items.map((n) => navButton(n, { horizontal: true }))}
-              </div>
-            ))}
-          </nav>
-          <Clock />
-          <Btn variant="primary" size="sm" onClick={() => openTaskDialog()}><Plus size={13} /> Task</Btn>
-        </header>
-        <main className="zoomable min-h-0 w-full max-w-full overflow-x-hidden flex-1 px-4 pt-4 pb-32 md:px-5 md:py-4">
-          <div className="w-full">{views[view]}</div>
-        </main>
-        <StatusBar dueToday={dueToday} todayMin={tracked.get(today) ?? 0} bestStreak={bestStreak} goFocus={() => setView("focus")} />
-        <Overlays greeting={greeting} closeGreeting={closeGreeting} paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
-        <MiniTimer />
-      </div>
-    );
-  }
-
-  /* ============================ DESK ENGINE (workspace sidebar + status bar) ============================ */
-  if (layout === "desk") {
-    return (
-      <div className="relative min-h-screen">
-        {mobileBar}
-        {mobileDrawer}
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-[228px] flex-col border-r p-4 md:flex"
-          style={{ background: "var(--panel)", borderColor: "var(--line)" }}>
-          <Logo />
-          <nav className="mt-5 flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
-            {NAV_SECTIONS.map((sec) => (
-              <div key={sec.title} className="flex flex-col gap-1">
-                <div className="px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--mut)" }}>
-                  {sec.title}
-                </div>
-                {sec.items.map((n) => navButton(n))}
-              </div>
-            ))}
-          </nav>
-          <div className="mt-auto rounded-xl border px-3 py-2.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-            <Clock />
-            <Btn variant="primary" className="mt-2 w-full" size="sm" onClick={() => openTaskDialog()}><Plus size={13} /> New task</Btn>
-          </div>
-        </aside>
-        <div className="ml-0 flex min-h-screen w-full flex-col md:ml-[228px] md:w-[calc(100%-228px)]">
-          <main className="zoomable min-h-0 w-full max-w-full overflow-x-hidden flex-1 px-4 pt-4 pb-32 md:px-6 md:py-6">
-            <div className="w-full">{views[view]}</div>
-          </main>
-          <StatusBarDesk dueToday={dueToday} todayMin={tracked.get(today) ?? 0} bestStreak={bestStreak} goFocus={() => setView("focus")} />
         </div>
-        <Overlays greeting={greeting} closeGreeting={closeGreeting} paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
-        <MiniTimer />
-      </div>
-    );
-  }
+      </header>
 
-  /* ============================ ZEN ENGINE (full-screen command cockpit) ============================ */
-  if (layout === "zen") {
-    return (
-      <div className="relative flex min-h-screen flex-col md:flex-row">
-        {mobileBar}
-        {mobileDrawer}
-        <div className="ambient" style={{ opacity: 0.5 }}><div className="grid-lines" /></div>
-        <aside className="sticky top-0 z-40 hidden h-screen w-[64px] flex-col items-center gap-1.5 border-r py-4 backdrop-blur-md md:flex"
-          style={{ background: "color-mix(in srgb, var(--bg) 80%, transparent)", borderColor: "var(--line)" }}>
-          <Logo small />
-          <div className="mt-3 flex w-full flex-col items-center gap-1 px-1.5">
-            {NAV_SECTIONS.map((sec, sIdx) => (
-              <div key={sec.title} className="flex w-full flex-col items-center gap-1">
-                {sIdx > 0 && <div className="my-1.5 w-6 border-b" style={{ borderColor: "var(--line)" }} />}
-                {sec.items.map((n) => navButton(n, { iconOnly: true }))}
-              </div>
-            ))}
-          </div>
-          <div className="mt-auto flex flex-col items-center gap-2.5">
-            {view === "dashboard" && (
-              <button onClick={() => setZenConfig((v) => !v)} title="Customise zen panels"
-                className="flex h-9 w-9 items-center justify-center rounded-xl transition-all"
-                style={{ color: zenConfig ? "var(--accent)" : "var(--mut)", cursor: "pointer" }}>
-                <SlidersHorizontal size={16} />
-              </button>
-            )}
-            <Clock compact />
-          </div>
-        </aside>
-        <div className="relative z-10 flex min-h-screen w-full flex-col md:w-[calc(100%-64px)]">
-          {view === "dashboard" && zenConfig && (
-            <div className="pop mx-4 mt-4 flex flex-wrap items-center gap-4 rounded-2xl border px-4 py-2.5 md:mx-6"
-              style={{ background: "var(--panel2)", borderColor: "var(--line)" }}>
-              <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--mut)" }}>Zen panels</span>
-              {(["plan", "timer", "checkin", "insights"] as const).map((k) => (
-                <Toggle key={k} checked={state.settings.zenPanels[k]}
-                  onChange={(v) => set((s) => ({ ...s, settings: { ...s.settings, zenPanels: { ...s.settings.zenPanels, [k]: v } } }))}
-                  label={k === "checkin" ? "check-in" : k} />
-              ))}
-              <button onClick={() => setZenConfig(false)} className="ml-auto text-[11.5px] font-bold" style={{ color: "var(--mut)", cursor: "pointer" }}>Done</button>
-            </div>
-          )}
-          <main className="zoomable min-h-0 w-full max-w-full overflow-x-hidden flex-1 px-4 pt-4 pb-32 md:px-6 md:py-5">
-            <div className="w-full">{views[view]}</div>
-          </main>
-        </div>
-        <Overlays greeting={greeting} closeGreeting={closeGreeting} paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
-        <MiniTimer />
-      </div>
-    );
-  }
+      {/* 2. Todoist-Style Side Navigation Drawer */}
+      <MobileDrawer
+        open={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        currentView={view}
+        onSelectView={(v) => {
+          setView(v);
+          window.location.hash = v;
+        }}
+        onSelectTaskFilter={(f) => {
+          setTaskFilter(f);
+          setView("tasks");
+          window.location.hash = "tasks";
+        }}
+        selectedTaskFilter={selectedTaskFilterKey}
+      />
 
-  /* ============================ LIQUID GLASS ENGINE (default) ============================ */
-  return (
-    <div className="relative min-h-screen">
-      {mobileBar}
-      {mobileDrawer}
-      <div className="liquid-field"><div className="blob b1" /><div className="blob b2" /><div className="blob b3" /></div>
-      <aside className="fixed inset-y-4 left-4 z-40 hidden w-[248px] flex-col rounded-3xl border p-4 backdrop-blur-2xl md:flex"
+      {/* 3. Main Screen Viewport (with top & bottom safe insets padding) */}
+      <main
+        className="zoomable min-h-screen w-full max-w-full overflow-x-hidden px-3.5 sm:px-5"
         style={{
-          background: "color-mix(in srgb, var(--panel) 55%, transparent)",
-          borderColor: "color-mix(in srgb, var(--text) 13%, transparent)",
-          boxShadow: "inset 0 1px 0 color-mix(in srgb, var(--text) 14%, transparent), 0 24px 60px -30px rgba(0,0,0,0.6)",
-        }}>
-        <Logo />
-        <nav className="mt-5 flex flex-1 flex-col gap-3 overflow-y-auto pr-1">
-          {NAV_SECTIONS.map((sec) => (
-            <div key={sec.title} className="flex flex-col gap-1">
-              <div className="px-3 pt-2 text-[10.5px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--mut)" }}>
-                {sec.title}
-              </div>
-              {sec.items.map((n) => navButton(n))}
-            </div>
-          ))}
-        </nav>
-        <div className="mt-auto flex flex-col gap-3">
-          <div className="rounded-2xl border px-3 py-2.5 backdrop-blur-xl" style={{ borderColor: "color-mix(in srgb, var(--text) 12%, transparent)", background: "color-mix(in srgb, var(--bg) 55%, transparent)" }}>
-            <Clock />
-          </div>
-          <Btn variant="primary" onClick={() => openTaskDialog()}><Plus size={14} /> New task</Btn>
-        </div>
-      </aside>
-      <main className="zoomable relative z-10 ml-0 w-full max-w-full overflow-x-hidden px-4 pt-4 pb-32 md:ml-[272px] md:w-[calc(100%-272px)] md:px-7 md:py-6">
-        <div className="w-full">{views[view]}</div>
+          paddingTop: "calc(58px + var(--safe-top))",
+          paddingBottom: "calc(76px + var(--safe-bottom))",
+        }}
+      >
+        <div className="w-full max-w-full">{views[view]}</div>
       </main>
-      <Overlays greeting={greeting} closeGreeting={closeGreeting} paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
+
+      {/* 4. Global Overlays & Mini Timer */}
+      <Overlays
+        greeting={greeting}
+        closeGreeting={closeGreeting}
+        paletteOpen={paletteOpen}
+        setPaletteOpen={setPaletteOpen}
+        drawerOpen={mobileNavOpen}
+        onCloseDrawer={() => setMobileNavOpen(false)}
+        onToggleTheme={toggleTheme}
+      />
       <MiniTimer />
-    </div>
-  );
-}
-
-/* ============================ zen home cockpit ============================ */
-function ZenHome() {
-  const { state, set, setView, requestFocus, toggleDone, openTaskDialog, toast } = useApp();
-  const today = todayIso();
-  const p = state.settings.zenPanels;
-  const tracked = useMemo(() => trackedByDay(state.sessions), [state.sessions]);
-  const todayMin = tracked.get(today) ?? 0;
-  const dueTasks = useMemo(
-    () => state.tasks.filter((t) => !t.done && t.due && t.due <= today && (!t.snoozedUntil || t.snoozedUntil <= Date.now()))
-      .sort((a, b) => (a.dueTime ? 0 : 1) - (b.dueTime ? 0 : 1) || (a.due ?? "").localeCompare(b.due ?? "")),
-    [state.tasks, today],
-  );
-  const doneToday = state.tasks.filter((t) => t.done && t.doneAt && todayIsoOf(t.doneAt) === today).length;
-  const running = state.sessions.find((s) => s.status === "running");
-  const log = state.dayLogs[today];
-  const [energy, setEnergy] = useState(log?.energy ?? 3);
-  const EMOJIS = ["😫", "😕", "😐", "🙂", "😄", "🤩"];
-  const [moodEmoji, setMoodEmoji] = useState(log?.moodEmoji ?? "");
-  const hour = new Date().getHours();
-  const name = state.settings.profileName.trim();
-
-  return (
-    <div className="flex h-full flex-col gap-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight">
-            {greetingFor(hour)}{name ? `, ${name}` : ""}.
-          </h1>
-          <p className="text-[13px] font-semibold" style={{ color: "var(--mut)" }}>
-            {fmtDateLong(new Date())} · {fmtDur(todayMin)} tracked · {dueTasks.length} due · {doneToday} done
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Btn variant="soft" onClick={() => setView("daylog")}><FileClock size={13} /> Day log</Btn>
-          <Btn variant="primary" onClick={() => requestFocus(null)}><Play size={13} /> Start focus</Btn>
-        </div>
-      </div>
-
-      <div className="grid flex-1 gap-4 lg:grid-cols-3" style={{ gridAutoRows: "minmax(120px, auto)" }}>
-        {p.plan && (
-          <div className="card card-hover flex flex-col p-4 lg:row-span-2">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-[15px] font-bold">Today’s plan</span>
-              <Btn size="sm" variant="ghost" onClick={() => openTaskDialog({ presetDate: today })}><Plus size={12} /> Add</Btn>
-            </div>
-            <div className="mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
-              {dueTasks.length === 0 && (
-                <div className="rounded-xl border border-dashed px-3 py-6 text-center text-[12.5px]" style={{ borderColor: "var(--line)", color: "var(--mut)" }}>
-                  Clear runway. Pull a task onto today or enjoy the quiet.
-                </div>
-              )}
-              {dueTasks.map((t) => {
-                const proj = state.projects.find((x) => x.id === t.projectId);
-                return (
-                  <div key={t.id} className="group flex items-center gap-2.5 rounded-xl border px-2.5 py-2 transition-all hover:translate-x-[2px]"
-                    style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                    <button onClick={() => toggleDone(t.id)}
-                      className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border transition-all hover:scale-110"
-                      style={{ borderColor: proj?.color ?? "var(--accent)", cursor: "pointer" }} aria-label="Complete">
-                      <Check size={11} className="opacity-0 transition-opacity group-hover:opacity-60" />
-                    </button>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-[13px] font-bold">{t.emoji ? `${t.emoji} ` : ""}{t.title}</div>
-                      <div className="text-[10.5px] font-semibold" style={{ color: "var(--mut)" }}>
-                        {proj?.name}{t.dueTime ? ` · ${t.dueTime}` : ""}{t.due && t.due < today ? " · overdue" : ""}
-                      </div>
-                    </div>
-                    <Btn size="sm" variant="soft" onClick={() => requestFocus(t.id)}><Play size={11} /></Btn>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {p.timer && (
-          <div className="card card-hover relative overflow-hidden p-4">
-            <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-25" style={{ background: "var(--accent)", filter: "blur(34px)" }} />
-            <span className="font-display text-[15px] font-bold">Focus</span>
-            {running ? (
-              <div className="mt-3">
-                <div className="stage-num font-mono text-[38px] font-bold" style={{ color: "var(--accent)" }}>
-                  {fmtHMS(sessionSeconds(running))}
-                </div>
-                <div className="mt-0.5 truncate text-[12px] font-semibold" style={{ color: "var(--mut)" }}>
-                  {running.mode} · {state.tasks.find((t) => t.id === running.taskId)?.title ?? "break"}
-                </div>
-                <Btn variant="primary" className="mt-3" onClick={() => setView("focus")}>Open session</Btn>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <div className="text-[12.5px] font-semibold" style={{ color: "var(--mut)" }}>
-                  Pomodoro, countdown or open flow — the counter takes over the screen once you start.
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Btn variant="primary" onClick={() => requestFocus(null)}><Timer size={13} /> Open Focus</Btn>
-                  <Btn variant="soft" onClick={() => setView("calendar")}><Calendar size={13} /> Calendar</Btn>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {p.insights && (
-          <div className="card card-hover p-4">
-            <span className="font-display text-[15px] font-bold">Today at a glance</span>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {[
-                { k: "Tracked", v: fmtDur(todayMin) },
-                { k: "Done", v: String(doneToday) },
-                { k: "Due", v: String(dueTasks.length) },
-                { k: "Top streak", v: `${Math.max(0, ...state.habits.map((h) => streakStats(h.completions).current))}d` },
-              ].map((x) => (
-                <div key={x.k} className="rounded-xl border px-3 py-2.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                  <div className="font-mono text-[17px] font-bold tnum" style={{ color: "var(--accent)" }}>{x.v}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--mut)" }}>{x.k}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {p.checkin && (
-          <div className="card card-hover p-4">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-[15px] font-bold">{hour < 14 ? "Morning check-in" : "Evening check-in"}</span>
-              <Btn size="sm" variant="primary" onClick={() => {
-                set((s) => ({ ...s, dayLogs: { ...s.dayLogs, [today]: { energy, moodEmoji, mood: s.dayLogs[today]?.mood ?? "", updatedAt: Date.now() } } }));
-                toast("Check-in saved", "ok");
-              }}><Check size={12} /> Save</Btn>
-            </div>
-            <div className="mt-3 flex items-center gap-3">
-              <span className="font-mono text-[20px] font-bold tnum" style={{ color: "var(--accent)" }}>{energy}/5</span>
-              <input type="range" min={1} max={5} value={energy} onChange={(e) => setEnergy(parseInt(e.target.value, 10))} className="energy flex-1" />
-            </div>
-            <div className="mt-2.5 flex gap-1.5">
-              {EMOJIS.map((e) => (
-                <button key={e} onClick={() => setMoodEmoji(moodEmoji === e ? "" : e)}
-                  className="flex h-9 flex-1 items-center justify-center rounded-xl border text-[17px] transition-all hover:scale-105"
-                  style={moodEmoji === e ? { borderColor: "var(--accent)", background: "var(--accent-soft)" } : { borderColor: "var(--line)", cursor: "pointer", opacity: 0.75 }}>
-                  {e}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-function todayIsoOf(ts: number): string {
-  const d = new Date(ts);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/* ============================ control / desk status bar ============================ */
-function StatusBar({ dueToday, todayMin, bestStreak, goFocus }: { dueToday: number; todayMin: number; bestStreak: number; goFocus: () => void }) {
-  const { state } = useApp();
-  const running = state.sessions.find((s) => s.status === "running");
-  const [, force] = useState(0);
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(() => force((x) => x + 1), 500);
-    return () => clearInterval(t);
-  }, [running]);
-  return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 hidden md:flex h-[52px] items-center gap-4 border-t px-4 backdrop-blur-md"
-      style={{ background: "color-mix(in srgb, var(--panel) 92%, transparent)", borderColor: "var(--line)" }}>
-      <span className="chip !py-0.5 text-[11px]"><Flame size={11} style={{ color: "var(--accent)" }} /> {fmtDur(todayMin)} today</span>
-      <span className="chip !py-0.5 text-[11px]"><ListTodo size={11} style={{ color: "var(--mut)" }} /> {dueToday} due</span>
-      <span className="chip !py-0.5 text-[11px]"><Check size={11} style={{ color: "var(--ok)" }} /> streak {bestStreak}d</span>
-      {running && (
-        <button onClick={goFocus} className="ml-auto flex items-center gap-2 rounded-lg px-2.5 py-1 font-mono text-[12.5px] font-bold tnum transition-all hover:opacity-80"
-          style={{ background: "var(--accent-soft)", color: "var(--accent)", cursor: "pointer" }}>
-          <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ok)", animation: "nowpulse 1.6s infinite" }} />
-          {running.mode} · {fmtHMS(sessionSeconds(running))}
-        </button>
-      )}
-      <span className={cn("ml-auto text-[10.5px] font-bold uppercase tracking-wider", running && "ml-0")} style={{ color: "var(--mut)" }}>
-        AES-256 · local only
-      </span>
-    </div>
-  );
-}
-
-/* Desk engine status bar: positioned right of sidebar so it doesn't cover the Add button */
-function StatusBarDesk({ dueToday, todayMin, bestStreak, goFocus }: { dueToday: number; todayMin: number; bestStreak: number; goFocus: () => void }) {
-  const { state } = useApp();
-  const running = state.sessions.find((s) => s.status === "running");
-  const [, force] = useState(0);
-  useEffect(() => {
-    if (!running) return;
-    const t = setInterval(() => force((x) => x + 1), 500);
-    return () => clearInterval(t);
-  }, [running]);
-  return (
-    <div className="fixed bottom-0 right-0 z-40 hidden md:flex h-[52px] items-center gap-4 border-l border-t px-4 backdrop-blur-md"
-      style={{ background: "color-mix(in srgb, var(--panel) 92%, transparent)", borderColor: "var(--line)", left: "228px" }}>
-      <span className="chip !py-0.5 text-[11px]"><Flame size={11} style={{ color: "var(--accent)" }} /> {fmtDur(todayMin)} today</span>
-      <span className="chip !py-0.5 text-[11px]"><ListTodo size={11} style={{ color: "var(--mut)" }} /> {dueToday} due</span>
-      <span className="chip !py-0.5 text-[11px]"><Check size={11} style={{ color: "var(--ok)" }} /> streak {bestStreak}d</span>
-      {running && (
-        <button onClick={goFocus} className="ml-auto flex items-center gap-2 rounded-lg px-2.5 py-1 font-mono text-[12.5px] font-bold tnum transition-all hover:opacity-80"
-          style={{ background: "var(--accent-soft)", color: "var(--accent)", cursor: "pointer" }}>
-          <span className="h-[7px] w-[7px] rounded-full" style={{ background: "var(--ok)", animation: "nowpulse 1.6s infinite" }} />
-          {running.mode} · {fmtHMS(sessionSeconds(running))}
-        </button>
-      )}
-      <span className={cn("ml-auto text-[10.5px] font-bold uppercase tracking-wider", running && "ml-0")} style={{ color: "var(--mut)" }}>
-        AES-256 · local only
-      </span>
     </div>
   );
 }
@@ -845,26 +446,37 @@ function MiniTimer() {
   const pct = remainingSec !== null ? Math.min(100, (elapsedSec / (running.plannedMin! * 60)) * 100) : null;
 
   const togglePause = () => {
+    triggerHaptic("light");
     set((s) => ({
       ...s,
       sessions: s.sessions.map((x) => {
         if (x.id !== running.id) return x;
         if (openPause) {
-          return { ...x, pauses: x.pauses.map((p, i) => (i === x.pauses.length - 1 ? { ...p, resumeAt: Date.now() } : p)) };
+          return {
+            ...x,
+            pauses: x.pauses.map((p, i) => (i === x.pauses.length - 1 ? { ...p, resumeAt: Date.now() } : p)),
+          };
         }
         return { ...x, pauses: [...x.pauses, { at: Date.now(), resumeAt: null }] };
       }),
     }));
     toast(openPause ? "Resumed" : "Paused — timestamps kept", "ok");
   };
+
   const stop = () => {
+    triggerHaptic("medium");
     const ts = Date.now();
     set((s) => ({
       ...s,
       sessions: s.sessions.map((x) =>
         x.id === running.id
-          ? { ...x, endedAt: ts, status: "stopped", pauses: x.pauses.map((p) => (p.resumeAt ? p : { ...p, resumeAt: ts })) }
-          : x,
+          ? {
+              ...x,
+              endedAt: ts,
+              status: "stopped",
+              pauses: x.pauses.map((p) => (p.resumeAt ? p : { ...p, resumeAt: ts })),
+            }
+          : x
       ),
     }));
     toast(`Stopped — ${fmtDur(Math.max(1, Math.round(elapsedSec / 60)))} saved to your log`, "ok");
@@ -873,16 +485,29 @@ function MiniTimer() {
   const big = remainingSec !== null ? fmtHMS(remainingSec) : fmtHMS(elapsedSec);
 
   return (
-    <div className="mini-timer fixed bottom-5 left-5 z-[80] w-[252px] rounded-2xl border p-3 shadow-2xl backdrop-blur-xl"
-      style={{ background: "color-mix(in srgb, var(--panel2) 92%, transparent)", borderColor: "color-mix(in srgb, var(--accent) 45%, var(--line))" }}>
+    <div
+      className="mini-timer fixed z-[80] w-[calc(100%-28px)] sm:w-[280px] left-3.5 sm:left-auto sm:right-4 rounded-2xl border p-3 shadow-2xl backdrop-blur-xl"
+      style={{
+        bottom: "calc(74px + var(--safe-bottom, 12px))",
+        background: "color-mix(in srgb, var(--panel2) 95%, transparent)",
+        borderColor: "color-mix(in srgb, var(--accent) 45%, var(--line))",
+      }}
+    >
       <div className="flex items-center gap-2">
-        <span className={cn("h-[9px] w-[9px] rounded-full", !openPause && "ring-pulse")} style={{ background: openPause ? "var(--warn)" : "var(--ok)" }} />
+        <span
+          className={cn("h-[9px] w-[9px] rounded-full", !openPause && "ring-pulse")}
+          style={{ background: openPause ? "var(--warn)" : "var(--ok)" }}
+        />
         <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
           {openPause ? "Paused" : running.mode === "break" ? "Break" : running.mode}
         </span>
-        <span className="ml-auto font-mono text-[18px] font-bold tnum" style={{ color: "var(--text)" }}>{big}</span>
+        <span className="ml-auto font-mono text-[18px] font-bold tnum" style={{ color: "var(--text)" }}>
+          {big}
+        </span>
       </div>
-      <div className="mt-1 truncate text-[12px] font-bold" title={label}>{label}</div>
+      <div className="mt-1 truncate text-[12px] font-bold" title={label}>
+        {label}
+      </div>
       {pct !== null && (
         <div className="mt-1.5 h-[5px] overflow-hidden rounded-full" style={{ background: "var(--bg)" }}>
           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "var(--accent)" }} />
@@ -892,8 +517,12 @@ function MiniTimer() {
         <Btn size="sm" variant="soft" className="flex-1" onClick={togglePause}>
           {openPause ? <Play size={12} /> : <Pause size={12} />} {openPause ? "Resume" : "Pause"}
         </Btn>
-        <Btn size="sm" variant="danger" onClick={stop}><Square size={11} /> Stop</Btn>
-        <Btn size="sm" variant="ghost" onClick={() => setView("focus")} title="Open full counter"><Timer size={12} /></Btn>
+        <Btn size="sm" variant="danger" onClick={stop}>
+          <Square size={11} /> Stop
+        </Btn>
+        <Btn size="sm" variant="ghost" onClick={() => setView("focus")} title="Open full counter">
+          <Timer size={12} />
+        </Btn>
       </div>
     </div>
   );
@@ -905,30 +534,35 @@ function Overlays({
   closeGreeting,
   paletteOpen,
   setPaletteOpen,
+  drawerOpen,
+  onCloseDrawer,
+  onToggleTheme,
 }: {
   greeting: boolean;
   closeGreeting: () => void;
   paletteOpen: boolean;
   setPaletteOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  drawerOpen?: boolean;
+  onCloseDrawer?: () => void;
+  onToggleTheme: () => void;
 }) {
-  const { state, set, view, setView, openTaskDialog, toast, confirmReq, resolveConfirm, taskDialog, closeTaskDialog } = useApp();
+  const { state, view, setView, openTaskDialog, confirmReq, resolveConfirm, taskDialog, closeTaskDialog } = useApp();
   const [confirmText, setConfirmText] = useState("");
-  const [help, setHelp] = useState(false);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
 
   // Android Native Hardware Back Button Handler
   useEffect(() => {
     return initHardwareBackButton(() => {
+      if (drawerOpen) {
+        onCloseDrawer?.();
+        return true;
+      }
       if (paletteOpen) {
         setPaletteOpen(false);
         return true;
       }
       if (moreSheetOpen) {
         setMoreSheetOpen(false);
-        return true;
-      }
-      if (help) {
-        setHelp(false);
         return true;
       }
       if (taskDialog.open) {
@@ -949,74 +583,31 @@ function Overlays({
       }
       return false; // let native minimize
     });
-  }, [paletteOpen, moreSheetOpen, help, taskDialog.open, confirmReq?.open, greeting, view, setView, closeTaskDialog, closeGreeting, resolveConfirm, setPaletteOpen]);
+  }, [
+    drawerOpen,
+    onCloseDrawer,
+    paletteOpen,
+    moreSheetOpen,
+    taskDialog.open,
+    confirmReq?.open,
+    greeting,
+    view,
+    setView,
+    closeTaskDialog,
+    closeGreeting,
+    resolveConfirm,
+    setPaletteOpen,
+  ]);
 
   useEffect(() => setConfirmText(""), [confirmReq]);
   const blocked = !!confirmReq?.requireText && confirmText !== confirmReq.requireText;
   const hour = new Date().getHours();
   const name = state.settings.profileName.trim();
 
-  const toggleTheme = () => {
-    const next = state.settings.themeMode === "dark" ? "light" : "dark";
-    set((s) => ({ ...s, settings: { ...s.settings, themeMode: next } }));
-    toast(`Switched to ${next} mode`, "ok");
-  };
-
-  /* ---------- global keyboard shortcuts (customisable in Settings) ---------- */
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setPaletteOpen((prev) => !prev);
-        return;
-      }
-      const el = e.target as HTMLElement | null;
-      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const sc = state.settings.shortcuts ?? {};
-      const k = e.key === " " ? "space" : e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      const action = Object.entries(sc).find(([, key]) => key === k)?.[0];
-      if (!action) return;
-      e.preventDefault();
-      switch (action) {
-        case "commandPalette": setPaletteOpen(true); break;
-        case "newTask": openTaskDialog(); break;
-        case "openFocus": setView("focus"); break;
-        case "openCalendar": setView("calendar"); break;
-        case "openNotes": setView("notes"); break;
-        case "openDayLog": setView("daylog"); break;
-        case "openReports": setView("reports"); break;
-        case "help": setHelp(true); break;
-        case "togglePause": {
-          const live = state.sessions.find((s) => s.status === "running");
-          if (!live) { toast("No timer running", "warn"); break; }
-          const lp = live.pauses[live.pauses.length - 1];
-          const isPaused = !!lp && lp.resumeAt === null;
-          set((st) => ({
-            ...st,
-            sessions: st.sessions.map((x) =>
-              x.id === live.id
-                ? isPaused
-                  ? { ...x, pauses: x.pauses.map((p, i) => (i === x.pauses.length - 1 ? { ...p, resumeAt: Date.now() } : p)) }
-                  : { ...x, pauses: [...x.pauses, { at: Date.now(), resumeAt: null }] }
-                : x,
-            ),
-          }));
-          toast(isPaused ? "Timer resumed" : "Timer paused", "ok");
-          break;
-        }
-        default: break;
-      }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.settings.shortcuts, state.sessions]);
   const quote = useMemo(() => {
     const pool = [...QUOTES, ...state.settings.customQuotes.filter((q) => q.trim())];
     return pool[Math.floor(Math.random() * pool.length)] ?? QUOTES[0];
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [greeting]);
+  }, [greeting, state.settings.customQuotes]);
 
   return (
     <>
@@ -1024,9 +615,12 @@ function Overlays({
         <div className="flex flex-col items-start gap-4">
           <div>
             <div className="font-display text-[27px] font-bold leading-tight tracking-tight">
-              {greetingFor(hour)}{name ? `, ${name}` : ""}.
+              {greetingFor(hour)}
+              {name ? `, ${name}` : ""}.
             </div>
-            <div className="mt-1 text-[13px] font-semibold" style={{ color: "var(--mut)" }}>{fmtDateLong(new Date())}</div>
+            <div className="mt-1 text-[13px] font-semibold" style={{ color: "var(--mut)" }}>
+              {fmtDateLong(new Date())}
+            </div>
           </div>
           <div className="w-full rounded-2xl border p-4" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
             <div className="flex items-start gap-3">
@@ -1037,11 +631,15 @@ function Overlays({
             </div>
           </div>
           <div className="flex w-full justify-end gap-2">
-            <Btn variant="ghost" onClick={closeGreeting}>Skip</Btn>
-            <Btn variant="primary" onClick={closeGreeting}>Let’s log the day</Btn>
+            <Btn variant="ghost" onClick={closeGreeting}>
+              Skip
+            </Btn>
+            <Btn variant="primary" onClick={closeGreeting}>
+              Let’s log the day
+            </Btn>
           </div>
           <div className="text-[11px]" style={{ color: "var(--mut)" }}>
-            Shows {state.settings.greeting === "every" ? "on every launch" : "on the first launch of each day"} · add your own lines in Settings → Greeting.
+            Shows {state.settings.greeting === "every" ? "on every launch" : "on the first launch of each day"} · customize in Settings.
           </div>
         </div>
       </Modal>
@@ -1054,7 +652,9 @@ function Overlays({
         zIndex={95}
         footer={
           <>
-            <Btn variant="ghost" onClick={() => resolveConfirm(false)}>Cancel</Btn>
+            <Btn variant="ghost" onClick={() => resolveConfirm(false)}>
+              Cancel
+            </Btn>
             <Btn
               variant={confirmReq?.danger ? "danger" : "primary"}
               disabled={blocked}
@@ -1066,7 +666,9 @@ function Overlays({
           </>
         }
       >
-        <p className="text-[13.5px] leading-relaxed" style={{ color: "var(--text)" }}>{confirmReq?.body}</p>
+        <p className="text-[13.5px] leading-relaxed" style={{ color: "var(--text)" }}>
+          {confirmReq?.body}
+        </p>
         {confirmReq?.requireText && (
           <div className="mt-3">
             <span className="lbl">Type “{confirmReq.requireText}” to confirm</span>
@@ -1076,35 +678,25 @@ function Overlays({
       </Modal>
 
       <TaskDialog />
-
       <LiveAnnouncer />
+
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         state={state}
         currentView={view}
-        onNavigate={(v) => { setView(v); window.location.hash = v; }}
+        onNavigate={(v) => {
+          setView(v);
+          window.location.hash = v;
+        }}
         onNewTask={() => openTaskDialog()}
         onSelectTask={(t) => openTaskDialog({ taskId: t.id })}
-        onSelectNote={() => { setView("notes"); window.location.hash = "notes"; }}
-        onToggleTheme={toggleTheme}
+        onSelectNote={() => {
+          setView("notes");
+          window.location.hash = "notes";
+        }}
+        onToggleTheme={onToggleTheme}
       />
-
-      <Modal open={help} onClose={() => setHelp(false)} title="Keyboard shortcuts" width={420}>
-        <div className="flex flex-col gap-1.5">
-          {SHORTCUT_ACTIONS.map((a) => (
-            <div key={a.action} className="flex items-center justify-between rounded-xl border px-3 py-2" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <span className="text-[12.5px] font-bold">{a.label}</span>
-              <kbd className="rounded-lg border px-2 py-0.5 font-mono text-[11.5px] font-bold" style={{ borderColor: "var(--line)", background: "var(--panel2)" }}>
-                {(state.settings.shortcuts[a.action] ?? "") === "space" ? "␣ space" : state.settings.shortcuts[a.action] ?? "—"}
-              </kbd>
-            </div>
-          ))}
-          <div className="mt-1 text-[11px] font-semibold" style={{ color: "var(--mut)" }}>
-            Remap any key in Settings → Keyboard shortcuts. Shortcuts pause while you type in a field.
-          </div>
-        </div>
-      </Modal>
 
       {/* Mobile Android Bottom Dock & Hub Sheet */}
       <MobileBottomNav

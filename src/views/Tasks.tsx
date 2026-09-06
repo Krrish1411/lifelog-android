@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus,
   Check,
@@ -19,6 +19,8 @@ import {
   FileText,
   ArrowUpDown,
   GripVertical,
+  SlidersHorizontal,
+  Filter,
 } from "lucide-react";
 import type { Priority, Project, Subtask, Task } from "../types";
 import { useApp } from "../store";
@@ -70,11 +72,36 @@ function viewKey(v: SmartView): string {
   return `pr:${v.priority}`;
 }
 
-export function TasksView() {
+export function TasksView({
+  filter,
+  onFilterChange,
+  onOpenDrawer,
+  projModalOpen,
+  setProjModalOpen,
+}: {
+  filter?: SmartView | { project: string } | { tag: string } | { priority: Priority };
+  onFilterChange?: (f: any) => void;
+  onOpenDrawer?: () => void;
+  projModalOpen?: boolean;
+  setProjModalOpen?: (v: boolean) => void;
+} = {}) {
   const app = useApp();
   const { state, set, toast, confirm, openTaskDialog, requestFocus, toggleDone } = app;
   const today = todayIso();
-  const [sel, setSel] = useState<SmartView>("today");
+  const [internalSel, setInternalSel] = useState<SmartView | { project: string } | { tag: string } | { priority: Priority }>("today");
+  const sel = filter ?? internalSel;
+  const setSel = (newSel: any) => {
+    setInternalSel(newSel);
+    onFilterChange?.(newSel);
+  };
+
+  useEffect(() => {
+    if (projModalOpen) {
+      setProjDialog({ open: true, project: null });
+      setProjModalOpen?.(false);
+    }
+  }, [projModalOpen, setProjModalOpen]);
+
   const [query, setQuery] = useState("");
   const [showCompleted, setShowCompleted] = useState(false);
   const [completedLimit, setCompletedLimit] = useState(25);
@@ -525,197 +552,23 @@ export function TasksView() {
   );
 
   return (
-    <div className="flex flex-col lg:flex-row gap-5 w-full max-w-full overflow-x-hidden">
-      {/* ================= smart panel (desktop only) ================= */}
-      <aside className="hidden lg:block sticky top-5 h-fit w-[230px] shrink-0">
-        <div className="card engine-panel flex flex-col gap-0.5 p-2.5">
-          <div
-            className="mb-1 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em]"
-            style={{ color: "var(--mut)" }}
+    <div className="flex flex-col gap-3.5 w-full max-w-full overflow-x-hidden">
+      {/* Mobile Filter & Drawer Quick Access Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+        {onOpenDrawer && (
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic("medium");
+              onOpenDrawer();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border bg-[var(--panel)] text-[var(--accent)] border-[var(--line)] shadow-xs hover:bg-[var(--panel2)]"
+            title="Open Drawer to view all projects, tags and priorities"
           >
-            Smart views
-          </div>
-          {navRow("inbox", <Inbox size={14} />, "Inbox", inboxCount, "inbox")}
-          {navRow("today", <CalendarPlus size={14} />, "Today", todayCount, "today")}
-          {navRow("all", <ListChecks size={14} />, "All tasks", openTasks.length, "all")}
-
-          {/* Projects with reordering */}
-          <div className="mb-1 mt-3 flex items-center justify-between px-1.5">
-            <span
-              className="text-[10px] font-bold uppercase tracking-[0.14em]"
-              style={{ color: "var(--mut)" }}
-            >
-              Projects
-            </span>
-            <button
-              onClick={() => openProject(null)}
-              className="rounded-md p-0.5 transition-transform hover:scale-110"
-              style={{ color: "var(--mut)", cursor: "pointer" }}
-              title="New project"
-            >
-              <Plus size={13} />
-            </button>
-          </div>
-          {state.projects.length === 0 && (
-            <div className="px-2 py-1 text-[11px]" style={{ color: "var(--mut)" }}>
-              No projects yet — add one.
-            </div>
-          )}
-          {state.projects.map((p) => {
-            const isDragging = activeDragProj === p.id;
-            return (
-              <div
-                key={p.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("application/x-lifelog-project", p.id);
-                  e.dataTransfer.effectAllowed = "move";
-                  setActiveDragProj(p.id);
-                }}
-                onDragEnd={() => {
-                  setActiveDragProj(null);
-                }}
-                onDragOver={(e) => {
-                  if (!e.dataTransfer.types.includes("application/x-lifelog-project")) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  handleProjectLiveReorder(p.id, e.clientY, rect);
-                }}
-                className={cn(
-                  "group flex items-center gap-1 rounded-xl transition-all duration-150 relative",
-                  isDragging && "opacity-40 scale-[0.98] ring-1 ring-[var(--accent)]"
-                )}
-              >
-                <div
-                  className="cursor-grab active:cursor-grabbing text-[var(--color-mut)] hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity p-1 shrink-0"
-                  title="Drag to reorder project"
-                >
-                  <GripVertical size={12} />
-                </div>
-                <button
-                  onClick={() => setSel({ project: p.id })}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-2 py-[7px] text-left text-[12.5px] font-bold transition-all"
-                  style={
-                    viewKey(sel) === `p:${p.id}`
-                      ? { background: "var(--accent-soft)", color: "var(--accent)" }
-                      : { color: "var(--text)", cursor: "pointer" }
-                  }
-                >
-                  <span className="text-[13px]">{p.emoji}</span>
-                  <span className="min-w-0 flex-1 truncate">{p.name}</span>
-                  <span className="h-[8px] w-[8px] shrink-0 rounded-full" style={{ background: p.color }} />
-                  <span className="tnum text-[10.5px] font-bold" style={{ color: "var(--mut)" }}>
-                    {openTasks.filter((t) => t.projectId === p.id).length}
-                  </span>
-                </button>
-                <div className="hidden group-hover:flex items-center gap-0.5 pr-1">
-                  <button
-                    onClick={() => openProject(p)}
-                    className="rounded p-1 hover:bg-[var(--panel2)] text-[var(--color-mut)] hover:text-[var(--color-text)] cursor-pointer"
-                    title={`Edit ${p.name}`}
-                  >
-                    <Pencil size={11} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {/* Tags with drag-and-drop reordering */}
-          <div
-            className="mb-1 mt-3 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em]"
-            style={{ color: "var(--mut)" }}
-          >
-            Tags
-          </div>
-          {allTags.length === 0 && (
-            <div className="px-2 py-1 text-[11px]" style={{ color: "var(--mut)" }}>
-              Tags appear as you add them.
-            </div>
-          )}
-          {allTags.map((t) => {
-            const isDragging = activeDragTag === t;
-            return (
-              <div
-                key={t}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("application/x-lifelog-tag", t);
-                  e.dataTransfer.effectAllowed = "move";
-                  setActiveDragTag(t);
-                }}
-                onDragEnd={() => {
-                  setActiveDragTag(null);
-                }}
-                onDragOver={(e) => {
-                  if (!e.dataTransfer.types.includes("application/x-lifelog-tag")) return;
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = "move";
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  handleTagLiveReorder(t, e.clientY, rect);
-                }}
-                className={cn(
-                  "group flex items-center gap-1 rounded-xl transition-all duration-150 relative",
-                  isDragging && "opacity-40 scale-[0.98] ring-1 ring-[var(--accent)]"
-                )}
-              >
-                <div
-                  className="cursor-grab active:cursor-grabbing text-[var(--color-mut)] hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity p-1 shrink-0"
-                  title="Drag to reorder tag"
-                >
-                  <GripVertical size={12} />
-                </div>
-                <button
-                  onClick={() => setSel({ tag: t })}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-left text-[12.5px] font-bold transition-all"
-                  style={
-                    viewKey(sel) === `t:${t}`
-                      ? { background: "var(--accent-soft)", color: "var(--accent)" }
-                      : { color: "var(--text)", cursor: "pointer" }
-                  }
-                >
-                  {tagDot(t)}
-                  <span className="min-w-0 flex-1 truncate">{t}</span>
-                  <span className="tnum text-[10.5px] font-bold" style={{ color: "var(--mut)" }}>
-                    {openTasks.filter((x) => x.tags.some((y) => y.toLowerCase() === t.toLowerCase())).length}
-                  </span>
-                </button>
-                <div className="hidden group-hover:flex items-center gap-0.5 pr-1">
-                  <button
-                    onClick={() => openTagMgr(t)}
-                    className="rounded p-1 hover:bg-[var(--panel2)] text-[var(--color-mut)] hover:text-[var(--color-text)] cursor-pointer"
-                    title={`Edit tag “${t}”`}
-                  >
-                    <Pencil size={11} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          <div
-            className="mb-1 mt-3 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em]"
-            style={{ color: "var(--mut)" }}
-          >
-            Priority
-          </div>
-          {PRIORITY_ORDER.map((pr) =>
-            navRow(
-              `pr:${pr}`,
-              <span>{PRIORITY_META[pr].icon}</span>,
-              PRIORITY_META[pr].label,
-              openTasks.filter((x) => x.priority === pr).length,
-              { priority: pr }
-            )
-          )}
-        </div>
-      </aside>
-
-      {/* ================= list ================= */}
-      <div className="min-w-0 flex-1 w-full max-w-full">
-        {/* Mobile Filter Carousel (visible on mobile / tablet) */}
-        <div className="lg:hidden mb-3.5 -mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+            <Filter size={13} />
+            <span>Filters & Projects</span>
+          </button>
+        )}
           <button
             type="button"
             onClick={() => {
@@ -875,16 +728,36 @@ export function TasksView() {
         </div>
 
         {/* Task list header & controls */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
-          <div>
-            <h1 className="font-display text-[22px] sm:text-[24px] font-bold tracking-tight">{selTitle}</h1>
-            <p className="text-[12px] sm:text-[12.5px] font-semibold" style={{ color: "var(--mut)" }}>
-              {list.length} open · {completed.length} completed
-            </p>
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between w-full">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="font-display text-[22px] sm:text-[24px] font-bold tracking-tight">{selTitle}</h1>
+              <p className="text-[12px] font-semibold" style={{ color: "var(--mut)" }}>
+                {list.length} open · {completed.length} completed
+              </p>
+            </div>
+            {/* Sort selector for mobile */}
+            <div className="flex items-center gap-0.5 bg-[var(--panel2)] p-0.5 rounded-xl border border-[var(--line)] text-xs shrink-0 sm:hidden">
+              {(["manual", "due", "priority"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => setSortMode(m)}
+                  className="px-2 py-0.5 rounded-[9px] font-bold whitespace-nowrap transition-all cursor-pointer text-[11px]"
+                  style={
+                    sortMode === m
+                      ? { background: "var(--accent)", color: "var(--on-accent)" }
+                      : { color: "var(--mut)", background: "transparent" }
+                  }
+                >
+                  {m === "manual" ? "Manual" : m === "due" ? "Due" : "Priority"}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-            {/* Sort selector */}
-            <div className="flex items-center gap-0.5 bg-[var(--panel2)] p-0.5 rounded-xl border border-[var(--line)] text-xs shrink-0">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Sort selector for desktop */}
+            <div className="hidden sm:flex items-center gap-0.5 bg-[var(--panel2)] p-0.5 rounded-xl border border-[var(--line)] text-xs shrink-0">
               <ArrowUpDown size={12} className="text-[var(--color-mut)] mx-1" />
               {(["manual", "due", "priority"] as const).map((m) => (
                 <button
@@ -903,7 +776,7 @@ export function TasksView() {
               ))}
             </div>
 
-            <div className="flex-1 min-w-[120px] sm:w-[160px]">
+            <div className="flex-1 min-w-0">
               <SearchInput value={query} onChange={setQuery} placeholder="Search tasks…" />
             </div>
 
@@ -916,7 +789,7 @@ export function TasksView() {
               }
               className="shrink-0"
             >
-              <Plus size={13} /> <span className="hidden xs:inline">Task</span>
+              <Plus size={13} /> <span>Task</span>
             </Btn>
           </div>
         </div>
@@ -1032,7 +905,6 @@ export function TasksView() {
             )}
           </div>
         )}
-      </div>
 
       {/* ================= project dialog ================= */}
       <Modal
@@ -1256,198 +1128,218 @@ function TaskCard({
           </button>
         </div>
       )}
-      <div className="flex items-center gap-3 px-3 py-2.5">
-        {/* Reordering in manual mode: desktop drag handle + mobile up/down buttons */}
-        {!done && sortMode === "manual" && (
-          <div className="flex items-center gap-0.5 shrink-0">
-            <div
-              className="cursor-grab active:cursor-grabbing p-1 rounded text-[var(--color-mut)] hover:text-accent hover:bg-[var(--panel2)] transition-opacity opacity-0 group-hover/card:opacity-100 shrink-0 hidden md:block"
-              title="Drag to reorder task"
-            >
-              <GripVertical size={14} />
-            </div>
-            {onMove && (
-              <div className="flex flex-col md:hidden -my-1">
-                <button
-                  type="button"
-                  disabled={idx === 0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerHaptic("light");
-                    onMove("up");
-                  }}
-                  className="p-1 rounded text-[var(--color-mut)] active:text-[var(--accent)] active:bg-[var(--panel2)] disabled:opacity-15 cursor-pointer"
-                  title="Move up"
-                  aria-label="Move task up"
-                >
-                  <ChevronUp size={13} />
-                </button>
-                <button
-                  type="button"
-                  disabled={idx === totalInList - 1}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    triggerHaptic("light");
-                    onMove("down");
-                  }}
-                  className="p-1 rounded text-[var(--color-mut)] active:text-[var(--accent)] active:bg-[var(--panel2)] disabled:opacity-15 cursor-pointer"
-                  title="Move down"
-                  aria-label="Move task down"
-                >
-                  <ChevronDown size={13} />
-                </button>
+      <div className="flex flex-col p-3 sm:p-3.5 gap-2 w-full max-w-full">
+        {/* Row 1: Left Checkbox + Middle Title (full width) + Right Actions */}
+        <div className="flex items-start gap-3 w-full">
+          {/* Reordering in manual mode */}
+          {!done && sortMode === "manual" && (
+            <div className="flex items-center gap-0.5 shrink-0 pt-0.5">
+              <div
+                className="cursor-grab active:cursor-grabbing p-1 rounded text-[var(--color-mut)] hover:text-accent hover:bg-[var(--panel2)] transition-opacity opacity-0 group-hover/card:opacity-100 shrink-0 hidden md:block"
+                title="Drag to reorder task"
+              >
+                <GripVertical size={14} />
               </div>
-            )}
-          </div>
-        )}
+              {onMove && (
+                <div className="flex flex-col md:hidden -my-1">
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerHaptic("light");
+                      onMove("up");
+                    }}
+                    className="p-1 rounded text-[var(--color-mut)] active:text-[var(--accent)] active:bg-[var(--panel2)] disabled:opacity-15 cursor-pointer"
+                    title="Move up"
+                    aria-label="Move task up"
+                  >
+                    <ChevronUp size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === totalInList - 1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      triggerHaptic("light");
+                      onMove("down");
+                    }}
+                    className="p-1 rounded text-[var(--color-mut)] active:text-[var(--accent)] active:bg-[var(--panel2)] disabled:opacity-15 cursor-pointer"
+                    title="Move down"
+                    aria-label="Move task down"
+                  >
+                    <ChevronDown size={13} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
-        <div className="flex items-center justify-center p-0.5 shrink-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              triggerHaptic("medium");
-              onToggle();
-            }}
-            className={cn(
-              "flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-lg border-[2px] transition-transform active:scale-85 hover:scale-105"
-            )}
-            style={{
-              borderColor: done ? "var(--ok)" : proj?.color ?? "var(--accent)",
-              background: done ? "var(--ok)" : "transparent",
-              cursor: "pointer",
-              opacity: snoozed ? 0.5 : 1,
-            }}
-            title={
-              done
-                ? "Reopen task"
-                : t.recurrence
-                ? "Complete occurrence (repeats)"
-                : "Complete task"
-            }
-            aria-label="Toggle done"
-          >
-            {done && <Check size={14} strokeWidth={2.8} style={{ color: "var(--on-accent)" }} />}
-          </button>
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {t.emoji && <span className="text-[15px]">{t.emoji}</span>}
-            <span
-              className={cn("truncate text-[14px] font-bold", done && "line-through opacity-70")}
+          {/* Tactile Checkbox */}
+          <div className="flex items-center justify-center shrink-0 pt-0.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                triggerHaptic("medium");
+                onToggle();
+              }}
+              className={cn(
+                "flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-lg border-[2px] transition-transform active:scale-85 hover:scale-105"
+              )}
+              style={{
+                borderColor: done ? "var(--ok)" : proj?.color ?? "var(--accent)",
+                background: done ? "var(--ok)" : "transparent",
+                cursor: "pointer",
+                opacity: snoozed ? 0.5 : 1,
+              }}
+              title={done ? "Reopen task" : "Complete task"}
+              aria-label="Toggle done"
             >
-              {t.title}
-            </span>
-            {t.priority === "urgent" ? (
-              <span
-                className="chip !py-0 text-[10px]"
-                style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
-              >
-                <Zap size={9} /> urgent
-              </span>
-            ) : (
-              <span
-                className="chip !py-0 text-[10px]"
-                style={{ color: PRIORITY_META[t.priority].color }}
-              >
-                {PRIORITY_META[t.priority].icon} {PRIORITY_META[t.priority].label}
-              </span>
-            )}
-            {/* Multi-block badge */}
-            {timeBlocks.length > 0 && (
-              <span
-                className="chip !py-0 text-[10px] bg-purple-500/10 border-purple-500/40 text-purple-600 dark:text-purple-300"
-                title={`${timeBlocks.length} scheduled calendar blocks`}
-              >
-                <Layers size={9} /> {completedBlocks}/{timeBlocks.length} blocks
-              </span>
-            )}
-            {/* Linked Notes badge */}
-            {t.linkedNoteIds && t.linkedNoteIds.length > 0 && (
-              <span
-                className="chip !py-0 text-[10px] bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-300"
-                title={`${t.linkedNoteIds.length} linked notes`}
-              >
-                <FileText size={9} /> {t.linkedNoteIds.length} notes
-              </span>
-            )}
+              {done && <Check size={14} strokeWidth={2.8} style={{ color: "var(--on-accent)" }} />}
+            </button>
           </div>
-          <div
-            className="mt-1 flex flex-wrap items-center gap-1.5 text-[10.5px] font-semibold"
-            style={{ color: "var(--mut)" }}
-          >
-            <span className="inline-flex items-center gap-1">
-              <span
-                className="h-[8px] w-[8px] rounded-full"
-                style={{ background: proj?.color }}
-              />
-              {proj?.emoji} {proj?.name}
-            </span>
-            {t.tags.map((tag) => (
-              <span
-                key={tag}
-                className="chip !py-0 text-[10px]"
-                style={{
-                  borderColor: `color-mix(in srgb, ${
-                    state.tagColors[tag] ?? "var(--accent)"
-                  } 55%, var(--line))`,
-                }}
+
+          {/* Full-width Title Area: multiline, clear typography, never truncated to 2 letters! */}
+          <div className="min-w-0 flex-1 cursor-pointer" onClick={onEdit}>
+            <div className="flex items-start gap-1.5">
+              {t.emoji && <span className="text-[15px] shrink-0">{t.emoji}</span>}
+              <p
+                className={cn(
+                  "text-[14.5px] sm:text-[15px] font-semibold leading-snug break-words text-[var(--text)]",
+                  done && "line-through opacity-60"
+                )}
               >
-                <span
-                  className="h-[7px] w-[7px] rounded-full"
-                  style={{ background: state.tagColors[tag] ?? "var(--accent)" }}
-                />
-                {tag}
-              </span>
-            ))}
-            {t.due && (
-              <span style={{ color: overdue ? "var(--danger)" : "var(--mut)" }}>
-                📅 {overdue ? "overdue · " : ""}
-                {fmtDayShort(t.due)}
-                {t.dueTime ? ` · ${t.dueTime}` : ""}
-              </span>
-            )}
-            {snoozed && <span style={{ color: "var(--warn)" }}>⏸ snoozed</span>}
-            {t.recurrence && (
-              <span className="inline-flex items-center gap-1" style={{ color: "var(--accent)" }}>
-                <Repeat size={9} /> {describeRecurrence(t.recurrence)}
-              </span>
-            )}
-            {t.estimateMin > 0 && <span>⏳ est {fmtDur(t.estimateMin)}</span>}
-            {tracked > 0 && (
-              <span style={{ color: "var(--accent)" }}>▸ {fmtDur(tracked)} logged</span>
+                {t.title}
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-1 shrink-0 ml-auto pt-0.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--mut)] hover:bg-[var(--panel2)] active:scale-90 cursor-pointer"
+              aria-label="Edit task"
+              title="Edit task"
+            >
+              <Pencil size={14} />
+            </button>
+            {!done && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFocus();
+                }}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--accent)] bg-[var(--accent-soft)] hover:opacity-80 active:scale-90 cursor-pointer"
+                title="Focus on task"
+                aria-label="Start focus"
+              >
+                <Play size={13} fill="currentColor" />
+              </button>
             )}
           </div>
         </div>
 
-        {t.subtasks.length > 0 && (
-          <button
-            onClick={() => setChainOpen((v) => !v)}
-            className="chip shrink-0 !py-0.5 text-[10.5px]"
-            style={{
-              cursor: "pointer",
-              color: subDone === t.subtasks.length ? "var(--ok)" : "var(--mut)",
-            }}
-          >
-            {chainOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />} {subDone}/
-            {t.subtasks.length} steps
-          </button>
-        )}
-        <Btn size="sm" variant="ghost" onClick={onEdit} aria-label="Edit task" className="shrink-0">
-          <Pencil size={13} />
-        </Btn>
-        {!done && (
-          <Btn
-            size="sm"
-            variant="soft"
-            onClick={onFocus}
-            title="Open in Focus — you choose the mode, nothing auto-starts"
-            className="shrink-0"
-          >
-            <Play size={12} />
-          </Btn>
-        )}
+        {/* Row 2: Metadata Badges (Project, Due Date, Priority, Tags, Subtasks, Time) */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] font-medium pt-1">
+          {/* Priority chip */}
+          {t.priority === "urgent" ? (
+            <span
+              className="chip !py-0.5 text-[10px]"
+              style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
+            >
+              <Zap size={9} /> urgent
+            </span>
+          ) : (
+            <span
+              className="chip !py-0.5 text-[10px]"
+              style={{ color: PRIORITY_META[t.priority].color }}
+            >
+              {PRIORITY_META[t.priority].icon} {PRIORITY_META[t.priority].label}
+            </span>
+          )}
+
+          {/* Project chip */}
+          {proj && (
+            <span className="chip !py-0.5 text-[10.5px]">
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: proj.color }} />
+              {proj.emoji} {proj.name}
+            </span>
+          )}
+
+          {/* Due date chip */}
+          {t.due && (
+            <span
+              className={cn(
+                "chip !py-0.5 text-[10.5px]",
+                overdue && "!border-red-500/40 !bg-red-500/10 text-red-600 dark:text-red-400 font-bold"
+              )}
+            >
+              📅 {overdue ? "overdue · " : ""}
+              {fmtDayShort(t.due)}
+              {t.dueTime ? ` · ${t.dueTime}` : ""}
+            </span>
+          )}
+
+          {/* Tag chips */}
+          {t.tags.map((tag) => (
+            <span
+              key={tag}
+              className="chip !py-0.5 text-[10px]"
+              style={{
+                borderColor: `color-mix(in srgb, ${state.tagColors[tag] ?? "var(--accent)"} 45%, var(--line))`,
+              }}
+            >
+              <span
+                className="h-[6px] w-[6px] rounded-full"
+                style={{ background: state.tagColors[tag] ?? "var(--accent)" }}
+              />
+              #{tag}
+            </span>
+          ))}
+
+          {/* Subtasks steps chip */}
+          {t.subtasks.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setChainOpen((v) => !v)}
+              className="chip shrink-0 !py-0.5 text-[10.5px] cursor-pointer hover:bg-[var(--panel2)] active:scale-95"
+              style={{
+                color: subDone === t.subtasks.length ? "var(--ok)" : "var(--mut)",
+              }}
+            >
+              {chainOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />} {subDone}/
+              {t.subtasks.length} steps
+            </button>
+          )}
+
+          {/* Recurrence chip */}
+          {t.recurrence && (
+            <span className="chip !py-0.5 text-[10.5px] text-[var(--accent)]">
+              <Repeat size={9} /> {describeRecurrence(t.recurrence)}
+            </span>
+          )}
+
+          {/* Estimate chip */}
+          {t.estimateMin > 0 && (
+            <span className="chip !py-0.5 text-[10.5px] text-[var(--mut)]">
+              ⏳ est {fmtDur(t.estimateMin)}
+            </span>
+          )}
+
+          {/* Logged time chip */}
+          {tracked > 0 && (
+            <span className="chip !py-0.5 text-[10.5px] text-[var(--accent)] font-bold">
+              ▸ {fmtDur(tracked)} logged
+            </span>
+          )}
+        </div>
       </div>
 
       {/* subtask chain */}

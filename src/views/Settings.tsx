@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { Bell, Download, Keyboard, Lock, Palette, Quote, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
+import { Bell, Download, Lock, Palette, Quote, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
 import type { LayoutMode, State, ThemeMode, TokenKey } from "../types";
 import {
-  DEFAULT_SETTINGS, DEFAULT_SHORTCUTS, FONT_PAIRS, QUOTES, REPORT_WIDGETS, SHORTCUT_ACTIONS, STATE_VERSION,
+  DEFAULT_SETTINGS, FONT_PAIRS, QUOTES, REPORT_WIDGETS, STATE_VERSION,
 } from "../types";
 import { ERASED_KEY, useApp } from "../store";
 import { decryptBackup, decryptEnvelope, decryptText, encryptBackup, getDeviceKey } from "../utils/crypto";
@@ -94,13 +94,16 @@ export function SettingsView() {
   };
   const accentRatio = contrast(ensureContrast(normalizeHex(s.accent) ?? s.accent, bgNow, 4.5), bgNow).toFixed(1);
 
-  /* ---------------- layout engines ---------------- */
-  const engines: { id: LayoutMode; name: string; desc: string }[] = [
-    { id: "glass", name: "Liquid Glass", desc: "Blurred translucent panels over a slow liquid colour field." },
-    { id: "planify", name: "Planify", desc: "Slim icon rail, airy single column, minimal chrome." },
-    { id: "desk", name: "Desk", desc: "Classic labelled workspace sidebar plus a live status bar." },
-    { id: "control", name: "Control", desc: "Dense command bar up top, tabular numbers, status strip." },
-    { id: "zen", name: "Zen", desc: "Edge-to-edge cockpit home with customisable panels." },
+  /* ---------------- mobile accent presets ---------------- */
+  const ACCENT_PRESETS = [
+    { name: "Crimson Red", hex: "#dc2626" },
+    { name: "Emerald", hex: "#10b981" },
+    { name: "Amber", hex: "#f59e0b" },
+    { name: "Indigo", hex: "#6366f1" },
+    { name: "Violet", hex: "#8b5cf6" },
+    { name: "Rose", hex: "#f43f5e" },
+    { name: "Sky", hex: "#0ea5e9" },
+    { name: "Cyan", hex: "#06b6d4" },
   ];
 
   /* ---------------- data ---------------- */
@@ -265,19 +268,32 @@ export function SettingsView() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {section("Interface engine", "Five genuinely different structures — switch any time, content is preserved.", (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-            {engines.map((l) => (
-              <button key={l.id} onClick={() => { patch({ layout: l.id }); toast(`Interface switched to ${l.name}`, "ok"); }}
-                className="rounded-xl border p-3 text-left transition-all hover:-translate-y-0.5"
-                style={s.layout === l.id ? { borderColor: "var(--accent)", background: "var(--accent-soft)", cursor: "pointer" } : { borderColor: "var(--line)", cursor: "pointer" }}>
-                <div className="flex items-center gap-1.5 text-[12.5px] font-bold">
-                  {l.name}
-                  {s.layout === l.id && <span className="ml-auto h-[7px] w-[7px] rounded-full" style={{ background: "var(--accent)" }} />}
-                </div>
-                <div className="mt-1 text-[10.5px] font-semibold leading-snug" style={{ color: "var(--mut)" }}>{l.desc}</div>
-              </button>
-            ))}
+        {section("Accent & Color Palette", "Tap any preset to instantly theme your entire mobile interface.", (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {ACCENT_PRESETS.map((p) => {
+                const active = (s.accent ?? "").toLowerCase() === p.hex.toLowerCase();
+                return (
+                  <button
+                    key={p.hex}
+                    type="button"
+                    onClick={() => {
+                      patch({ accent: p.hex });
+                      toast(`Accent changed to ${p.name}`, "ok");
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 rounded-xl border p-2.5 text-xs font-bold transition-all cursor-pointer",
+                      active
+                        ? "ring-2 ring-[var(--accent)] border-transparent bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "border-[var(--line)] bg-[var(--bg)] text-[var(--text)] hover:bg-[var(--panel2)]"
+                    )}
+                  >
+                    <span className="h-4 w-4 rounded-full shrink-0 shadow-xs" style={{ background: p.hex }} />
+                    <span className="truncate">{p.name}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         ), true)}
 
@@ -420,20 +436,29 @@ export function SettingsView() {
           </div>
         ))}
 
-        {section("Keyboard shortcuts", "Work without touching the mouse. Click a key, then press the new one (Esc cancels).", (
-          <div className="flex flex-col gap-1.5">
-            {SHORTCUT_ACTIONS.map((a) => (
-              <div key={a.action} className="flex items-center justify-between rounded-xl border px-3 py-1.5" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-                <span className="text-[12.5px] font-bold">{a.label}</span>
-                <ShortcutKey k={s.shortcuts[a.action] ?? ""} onChange={(k) => {
-                  patch({ shortcuts: { ...s.shortcuts, [a.action]: k } });
-                  toast(`“${a.label}” → ${k === " " ? "space" : k}`, "ok");
-                }} />
+        {section("Android Mobile Experience", "Mobile-optimized architecture with local-only storage and native system bars.", (
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              <div>
+                <div className="text-[13px] font-bold">Native Safe Area Insets</div>
+                <div className="text-[11px] font-semibold" style={{ color: "var(--mut)" }}>Status bar and notch collision avoidance enabled</div>
               </div>
-            ))}
-            <Btn size="sm" variant="ghost" className="self-start" onClick={() => { patch({ shortcuts: { ...DEFAULT_SHORTCUTS } }); toast("Shortcuts reset", "ok"); }}>
-              <RotateCcw size={12} /> Reset defaults
-            </Btn>
+              <span className="chip !py-0.5 text-[11px] font-mono" style={{ color: "var(--ok)", borderColor: "var(--ok)" }}>Active</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              <div>
+                <div className="text-[13px] font-bold">Tactile Touch Feedback</div>
+                <div className="text-[11px] font-semibold" style={{ color: "var(--mut)" }}>Haptic feedback on task completion & reordering</div>
+              </div>
+              <span className="chip !py-0.5 text-[11px] font-mono" style={{ color: "var(--ok)", borderColor: "var(--ok)" }}>Enabled</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              <div>
+                <div className="text-[13px] font-bold">Local Encrypted Vault</div>
+                <div className="text-[11px] font-semibold" style={{ color: "var(--mut)" }}>AES-256 zero-server storage on device</div>
+              </div>
+              <span className="chip !py-0.5 text-[11px] font-mono" style={{ color: "var(--accent)" }}>Offline Only</span>
+            </div>
           </div>
         ))}
 
@@ -596,34 +621,6 @@ export function SettingsView() {
         {importErr && <div className="mt-2 text-[12px] font-bold" style={{ color: "var(--danger)" }}>{importErr}</div>}
       </Modal>
 
-      <span className="hidden"><Keyboard size={1} /></span>
     </div>
-  );
-}
-
-/* ---------------- key-capture control ---------------- */
-function ShortcutKey({ k, onChange }: { k: string; onChange: (key: string) => void }) {
-  const [capturing, setCapturing] = useState(false);
-  useEffect(() => {
-    if (!capturing) return;
-    const h = (e: KeyboardEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.key === "Escape") { setCapturing(false); return; }
-      if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") return;
-      onChange(e.key === " " ? "space" : e.key.toLowerCase());
-      setCapturing(false);
-    };
-    window.addEventListener("keydown", h, true);
-    return () => window.removeEventListener("keydown", h, true);
-  }, [capturing, onChange]);
-  return (
-    <button onClick={() => setCapturing((v) => !v)}
-      className={cn("min-w-[64px] rounded-lg border px-2.5 py-1 font-mono text-[12px] font-bold transition-all")}
-      style={capturing
-        ? { borderColor: "var(--accent)", color: "var(--accent)", background: "var(--accent-soft)", cursor: "pointer" }
-        : { borderColor: "var(--line)", background: "var(--panel2)", color: "var(--text)", cursor: "pointer" }}>
-      {capturing ? "press a key…" : k === "space" ? "␣ space" : k || "—"}
-    </button>
   );
 }

@@ -422,7 +422,7 @@ export function CalendarView() {
         busyNow={busyNow?.title ?? null}
       />
       <Tray unscheduled={unscheduled} />
-      <div className="card overflow-x-auto">
+      <div className="card overflow-x-auto w-full max-w-full scrollbar-none">
         <div className="flex min-w-[640px]">
           {/* gutter */}
           <div
@@ -652,42 +652,45 @@ function Header({
   busyNow: string | null;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 w-full">
       <div>
-        <h1 className="font-display text-[24px] font-bold tracking-tight">Calendar</h1>
+        <h1 className="font-display text-[22px] sm:text-[24px] font-bold tracking-tight">Calendar</h1>
         <p
-          className="flex items-center gap-2 text-[13px] font-semibold"
+          className="flex items-center gap-2 text-[12.5px] font-semibold"
           style={{ color: "var(--mut)" }}
         >
-          <Clock3 size={13} /> {label}
+          <Clock3 size={13} className="shrink-0" />
+          <span className="truncate">{label}</span>
           <span
-            className="chip !py-0 text-[10.5px]"
+            className="chip !py-0 text-[10px] max-w-[170px] truncate"
             style={{ color: busyNow ? "var(--danger)" : "var(--ok)" }}
           >
             now: {busyNow ? `busy · ${busyNow}` : "free"}
           </span>
         </p>
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <Btn variant="soft" onClick={() => navigate(-1)} aria-label="Previous">
+      <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
+        <Btn variant="soft" size="sm" onClick={() => navigate(-1)} aria-label="Previous">
           <ChevronLeft size={14} />
         </Btn>
-        <Btn variant="outline" onClick={onToday}>
+        <Btn variant="outline" size="sm" onClick={onToday}>
           Today
         </Btn>
-        <Btn variant="soft" onClick={() => navigate(1)} aria-label="Next">
+        <Btn variant="soft" size="sm" onClick={() => navigate(1)} aria-label="Next">
           <ChevronRight size={14} />
         </Btn>
-        <Seg
-          options={[
-            { value: "day", label: "Day" },
-            { value: "3day", label: "3 Day" },
-            { value: "week", label: "Week" },
-            { value: "month", label: "Month" },
-          ]}
-          value={view}
-          onChange={setView}
-        />
+        <div className="ml-auto sm:ml-0">
+          <Seg
+            options={[
+              { value: "day", label: "Day" },
+              { value: "3day", label: "3 Day" },
+              { value: "week", label: "Week" },
+              { value: "month", label: "Month" },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+        </div>
       </div>
     </div>
   );
@@ -696,7 +699,7 @@ function Header({
 function Tray({ unscheduled }: { unscheduled: UnscheduledItem[] }) {
   const { state, openTaskDialog } = useApp();
   return (
-    <div className="card flex items-center gap-2 overflow-x-auto p-2.5">
+    <div className="card flex items-center gap-2 overflow-x-auto p-2.5 w-full max-w-full scrollbar-none">
       <span
         className="flex shrink-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider"
         style={{ color: "var(--mut)" }}

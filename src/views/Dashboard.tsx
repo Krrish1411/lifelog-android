@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Check, ExternalLink, FileText, Flame, Leaf, Pencil, Play, Plus, RotateCcw, Timer, SlidersHorizontal } from "lucide-react";
+import { CalendarDays, Check, ExternalLink, FileText, Flame, Pencil, Play, Plus, RotateCcw, Timer, SlidersHorizontal } from "lucide-react";
 import type { Task } from "../types";
 import { useApp } from "../store";
 import {
@@ -46,7 +46,6 @@ export function Dashboard() {
   const app = useApp();
   const { state, set, setView, requestFocus, openTaskDialog, toggleDone, toast } = app;
   const today = todayIso();
-  const [zen, setZen] = useState(false);
   const [quick, setQuick] = useState("");
   const [flashTab, setFlashTab] = useState<"1w" | "1m" | "1y">("1w");
   const [editingCheckin, setEditingCheckin] = useState(false);
@@ -276,19 +275,25 @@ export function Dashboard() {
         </div>
 
         <div className="mt-3.5">
-          <span className="lbl">Mood</span>
-          <div className="flex items-center gap-1.5">
+          <div className="mb-1 flex items-baseline justify-between">
+            <span className="lbl mb-0">Mood</span>
+            <span className="text-[11px] font-semibold" style={{ color: "var(--mut)" }}>
+              {moodEmoji ? "tap again to clear" : "pick one"}
+            </span>
+          </div>
+          <div className="grid grid-cols-6 gap-1.5 w-full">
             {MOOD_EMOJIS.map((e) => {
               const active = moodEmoji === e;
               return (
                 <button
                   key={e}
+                  type="button"
                   disabled={saved}
                   onClick={() => { setMoodEmoji(active ? null : e); setEditingCheckin(true); }}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border text-[20px] transition-all hover:scale-110 disabled:cursor-default disabled:hover:scale-100"
+                  className="flex h-10 w-full items-center justify-center rounded-xl border text-[19px] transition-all hover:scale-105 active:scale-90 disabled:cursor-default disabled:hover:scale-100"
                   style={
                     active
-                      ? { background: "var(--accent-soft)", borderColor: "var(--accent)", transform: "scale(1.12)", boxShadow: "0 4px 14px -6px var(--accent)" }
+                      ? { background: "var(--accent-soft)", borderColor: "var(--accent)", transform: "scale(1.06)", boxShadow: "0 4px 14px -6px var(--accent)" }
                       : { borderColor: "var(--line)", background: "var(--bg)", opacity: saved ? 0.55 : 1, cursor: "pointer" }
                   }
                   aria-label={`Mood ${e}`}
@@ -297,9 +302,6 @@ export function Dashboard() {
                 </button>
               );
             })}
-            <span className="ml-1 text-[11.5px] font-semibold" style={{ color: "var(--mut)" }}>
-              {moodEmoji ? "tap again to clear" : "pick one"}
-            </span>
           </div>
         </div>
 
@@ -470,10 +472,10 @@ export function Dashboard() {
                     {past && <Check size={11} style={{ color: "var(--mut)" }} />}
                     <span className="truncate text-[13px] font-bold">{t.emoji ? `${t.emoji} ` : ""}{t.title}</span>
                   </div>
-                  <div className="mt-0.5 flex items-center gap-1.5 text-[10.5px] font-semibold" style={{ color: "var(--mut)" }}>
-                    <span className="inline-block h-[7px] w-[7px] rounded-full" style={{ background: proj?.color }} />
-                    {proj?.name} · {t.durationMin}m
-                    {taskTracked(t.id) > 0 && <span style={{ color: "var(--accent)" }}>▸ {fmtDur(taskTracked(t.id))} logged</span>}
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10.5px] font-semibold" style={{ color: "var(--mut)" }}>
+                    <span className="inline-block h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: proj?.color }} />
+                    <span className="truncate max-w-[130px]">{proj?.name}</span> · {t.durationMin}m
+                    {taskTracked(t.id) > 0 && <span className="shrink-0" style={{ color: "var(--accent)" }}>▸ {fmtDur(taskTracked(t.id))} logged</span>}
                   </div>
                 </div>
                 {!compact && (
@@ -490,39 +492,6 @@ export function Dashboard() {
       )}
     </div>
   );
-
-  /* ================= zen overlay ================= */
-  if (zen) {
-    return (
-      <div className="fadein fixed inset-0 z-[60] overflow-y-auto" style={{ background: "color-mix(in srgb, var(--bg) 92%, black)" }}>
-        <div className="pointer-events-none fixed inset-0" style={{ background: "radial-gradient(ellipse 70% 50% at 50% 0%, var(--accent-soft), transparent 70%)" }} />
-        <div className="relative mx-auto flex max-w-[560px] flex-col gap-4 px-5 py-14">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="font-display text-[24px] font-bold tracking-tight">Zen mode</div>
-              <div className="text-[12.5px] font-semibold" style={{ color: "var(--mut)" }}>{fmtDateLong(new Date())}</div>
-            </div>
-            <Btn variant="outline" onClick={() => setZen(false)}><Leaf size={13} /> Exit zen</Btn>
-          </div>
-          <div className="rise grid grid-cols-3 gap-2 text-center">
-            {[
-              { k: "Focused", v: fmtDur(todayMin) },
-              { k: "Sessions", v: String(sessionsToday.length) },
-              { k: "Done", v: String(doneToday.length) },
-            ].map((x) => (
-              <div key={x.k} className="rounded-2xl border px-3 py-4" style={{ borderColor: "var(--line)", background: "var(--panel)" }}>
-                <div className="font-mono text-[22px] font-bold tnum" style={{ color: "var(--accent)" }}>{x.v}</div>
-                <div className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "var(--mut)" }}>{x.k}</div>
-              </div>
-            ))}
-          </div>
-          {scheduleCard(true)}
-          {checkinCard(true)}
-          {planCard(true)}
-        </div>
-      </div>
-    );
-  }
 
   /* ================= the cockpit ================= */
   return (
@@ -544,8 +513,7 @@ export function Dashboard() {
           <Btn variant="outline" onClick={() => setCustomizeOpen(true)}>
             <SlidersHorizontal size={13} /> Customize Bento
           </Btn>
-          <Btn variant="outline" onClick={() => setZen(true)}><Leaf size={13} /> Zen mode</Btn>
-          <Btn variant="soft" onClick={() => openTaskDialog({ presetDate: today })}><Plus size={13} /> Task</Btn>
+          <Btn variant="primary" onClick={() => openTaskDialog({ presetDate: today })}><Plus size={13} /> Task</Btn>
         </div>
       </div>
 
@@ -760,10 +728,10 @@ export function Dashboard() {
 
           <button
             onClick={() => openTaskDialog({ presetDate: today })}
-            className="card card-hover flex items-center justify-center gap-2 p-4 text-[13px] font-bold"
+            className="card card-hover flex w-full max-w-full items-center justify-center gap-2 p-4 text-[13px] font-bold text-center"
             style={{ color: "var(--accent)", cursor: "pointer" }}
           >
-            <Plus size={15} /> Plan something for today
+            <Plus size={15} /> <span>Plan something for today</span>
           </button>
         </div>
       </div>

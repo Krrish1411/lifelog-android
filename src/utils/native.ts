@@ -64,28 +64,27 @@ export function initHardwareBackButton(onBack: () => boolean): () => void {
 export async function initNativeSystemBars(): Promise<void> {
   if (!isNative) return;
   try {
-    const info = await StatusBar.getInfo();
-    if (info && typeof info.height === "number" && info.height > 0) {
-      document.documentElement.style.setProperty("--status-bar-height", `${info.height}px`);
-    } else {
-      // Modern Android devices with front-camera notches have 28-36px status bar
-      document.documentElement.style.setProperty("--status-bar-height", "28px");
-    }
+    // Prevent webview from drawing behind the Android status bar
+    await StatusBar.setOverlaysWebView({ overlay: false });
+    // Default safe status bar height on modern notch/punch-hole Android devices is 40-44px
+    document.documentElement.style.setProperty("--status-bar-height", "44px");
   } catch {
-    document.documentElement.style.setProperty("--status-bar-height", "28px");
+    document.documentElement.style.setProperty("--status-bar-height", "44px");
   }
 }
 
 /**
  * Configure immersive status bar for Android.
- * Inverts status bar icons (light vs dark) based on active theme for perfect contrast.
+ * Inverts status bar icons (light vs dark) based on active theme for perfect contrast
+ * and applies matching background color.
  */
-export async function configureStatusBar(isDark: boolean): Promise<void> {
+export async function configureStatusBar(isDark: boolean, bgColor?: string): Promise<void> {
   if (!isNative) return;
   try {
-    // Style.Dark: Light text for dark backgrounds
-    // Style.Light: Dark text for light backgrounds
+    await StatusBar.setOverlaysWebView({ overlay: false });
     await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
+    const bg = bgColor || (isDark ? "#121816" : "#ffffff");
+    await StatusBar.setBackgroundColor({ color: bg });
   } catch {
     // Graceful fallback
   }
