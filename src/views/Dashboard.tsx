@@ -69,6 +69,7 @@ export function Dashboard() {
   const [energy, setEnergy] = useState(3);
   const [moodEmoji, setMoodEmoji] = useState<string | null>(null);
   const [mood, setMood] = useState("");
+  const feelingInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [customizeOpen, setCustomizeOpen] = useState(false);
 
   const widgets = state.settings.dashboardWidgets ?? {};
@@ -90,7 +91,9 @@ export function Dashboard() {
     const l = state.dayLogs[today];
     setEnergy(l?.energy ?? 3);
     setMoodEmoji(l?.moodEmoji ?? null);
-    setMood(l?.mood ?? "");
+    if (document.activeElement !== feelingInputRef.current) {
+      setMood(l?.mood ?? "");
+    }
   }, [today, state.dayLogs]);
 
   /* ---------- daily note (inline, encrypted) ---------- */
@@ -230,7 +233,7 @@ export function Dashboard() {
         [today]: {
           energy: nextEnergy,
           moodEmoji: nextMoodEmoji,
-          mood: nextMood.trim(),
+          mood: nextMood,
           updatedAt: Date.now(),
         },
       },
@@ -373,11 +376,19 @@ export function Dashboard() {
           <div className="mt-3 min-w-0">
             <span className="lbl mb-1">Feeling note</span>
             <textarea
+              ref={feelingInputRef}
               className="inp min-h-[48px] resize-y w-full min-w-0 text-[13px]"
               value={mood}
               onChange={(e) => {
                 setMood(e.target.value);
                 updateCheckin({ mood: e.target.value });
+              }}
+              onBlur={() => {
+                const trimmed = mood.trim();
+                if (trimmed !== mood) {
+                  setMood(trimmed);
+                  updateCheckin({ mood: trimmed });
+                }
               }}
               placeholder="One honest sentence about today… (auto-saves)"
             />
