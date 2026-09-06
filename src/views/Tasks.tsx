@@ -96,6 +96,12 @@ export function TasksView({
   };
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [sel]);
+
+  useEffect(() => {
     if (projModalOpen) {
       setProjDialog({ open: true, project: null });
       setProjModalOpen?.(false);

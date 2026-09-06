@@ -16,7 +16,7 @@ import type { Priority, Project, ViewId } from "../types";
 import { useApp } from "../store";
 import { triggerHaptic } from "../utils/native";
 import { normalizeHex } from "../utils/core";
-import { useBodyScrollLock } from "../utils/scrollLock";
+import { scrollToPageTop, useBodyScrollLock } from "../utils/scrollLock";
 import { Btn, ColorPicker, EmojiPicker, Labeled, Modal, TextInput, cn } from "./ui";
 
 interface MobileDrawerProps {
@@ -70,6 +70,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   const handleSmartView = (filterKey: "inbox" | "today" | "all") => {
     triggerHaptic("light");
+    scrollToPageTop("auto");
     onSelectView?.("tasks");
     onSelectTaskFilter?.(filterKey);
     onClose();
@@ -77,6 +78,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   const handleProjectClick = (projectId: string) => {
     triggerHaptic("light");
+    scrollToPageTop("auto");
     onSelectView?.("tasks");
     onSelectTaskFilter?.({ project: projectId });
     onClose();
@@ -84,6 +86,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   const handleTagClick = (tag: string) => {
     triggerHaptic("light");
+    scrollToPageTop("auto");
     onSelectView?.("tasks");
     onSelectTaskFilter?.({ tag });
     onClose();
@@ -91,6 +94,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   const handlePriorityClick = (priority: Priority) => {
     triggerHaptic("light");
+    scrollToPageTop("auto");
     onSelectView?.("tasks");
     onSelectTaskFilter?.({ priority });
     onClose();

@@ -2,6 +2,7 @@ import React from "react";
 import { LayoutDashboard, ListTodo, Plus, Timer, Grid } from "lucide-react";
 import type { ViewId } from "../types";
 import { triggerHaptic } from "../utils/native";
+import { scrollToPageTop } from "../utils/scrollLock";
 
 interface MobileBottomNavProps {
   currentView: ViewId;
@@ -20,7 +21,12 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
 }) => {
   const handleTab = (v: ViewId) => {
     triggerHaptic("light");
-    onSelectView(v);
+    if (v === currentView) {
+      scrollToPageTop("smooth");
+    } else {
+      scrollToPageTop("auto");
+      onSelectView(v);
+    }
   };
 
   const handleFab = () => {

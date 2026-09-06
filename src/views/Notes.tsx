@@ -113,6 +113,7 @@ export function NotesView() {
     prevSelId.current = selId;
 
     if (!selId) return;
+    if (taRef.current) taRef.current.scrollTop = 0;
     const note = state.notes.find((n) => n.id === selId);
     if (!note || loadedFor.current === selId) return;
     loadedFor.current = selId;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
   Calendar,
@@ -45,6 +45,7 @@ import { LiveAnnouncer } from "./LiveAnnouncer";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileMoreSheet } from "./MobileMoreSheet";
 import { MobileDrawer } from "./MobileDrawer";
+import { scrollToPageTop } from "../utils/scrollLock";
 import {
   initHardwareBackButton,
   configureStatusBar,
@@ -163,10 +164,26 @@ export function Shell() {
     return () => window.removeEventListener("hashchange", handleHash);
   }, [setView]);
 
+  const mainRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     if (window.location.hash.replace(/^#/, "") !== view) {
       window.location.hash = `#${view}`;
     }
+  }, [view]);
+
+  // Always reset scroll to top immediately when switching views
+  useEffect(() => {
+    scrollToPageTop("auto");
+    const raf = requestAnimationFrame(() => scrollToPageTop("auto"));
+    const t1 = setTimeout(() => scrollToPageTop("auto"), 20);
+    const t2 = setTimeout(() => scrollToPageTop("auto"), 80);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
   }, [view]);
 
   /* ---------- theme variables: customisable, contrast-checked ---------- */
@@ -426,6 +443,7 @@ export function Shell() {
 
       {/* 3. Main Screen Viewport (with top & bottom safe insets padding) */}
       <main
+        ref={mainRef}
         className="zoomable min-h-screen w-full max-w-full min-w-0 overflow-x-hidden px-3.5 sm:px-5"
         style={{
           paddingTop: "calc(58px + var(--safe-top))",

@@ -46,3 +46,29 @@ export function useBodyScrollLock(locked: boolean): void {
     };
   }, [locked]);
 }
+
+// Disable browser automatic history scroll restoration so section switches always start at top
+if (typeof window !== "undefined" && "scrollRestoration" in window.history) {
+  try {
+    window.history.scrollRestoration = "manual";
+  } catch {}
+}
+
+/**
+ * Unconditionally scrolls the window, documentElement, body, #root, and <main> to top (0, 0).
+ */
+export function scrollToPageTop(behavior: ScrollBehavior = "auto"): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.scrollTo({ top: 0, left: 0, behavior });
+  } catch {
+    window.scrollTo(0, 0);
+  }
+  if (document.documentElement) document.documentElement.scrollTop = 0;
+  if (document.body) document.body.scrollTop = 0;
+  if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+  const root = document.getElementById("root");
+  if (root) root.scrollTop = 0;
+  const main = document.querySelector("main");
+  if (main) main.scrollTop = 0;
+}

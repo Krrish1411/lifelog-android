@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { ViewId } from "../types";
 import { triggerHaptic } from "../utils/native";
-import { useBodyScrollLock } from "../utils/scrollLock";
+import { scrollToPageTop, useBodyScrollLock } from "../utils/scrollLock";
 
 interface MobileMoreSheetProps {
   open: boolean;
@@ -52,6 +52,7 @@ export const MobileMoreSheet: React.FC<MobileMoreSheetProps> = ({
 
   const handleSelect = (v: ViewId) => {
     triggerHaptic("light");
+    scrollToPageTop("auto");
     onSelectView(v);
     onClose();
   };
