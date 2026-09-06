@@ -406,7 +406,7 @@ export function NotesView() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-120px)] min-h-[500px] flex-col gap-4">
+    <div className="flex min-h-[500px] flex-col gap-4 w-full max-w-full overflow-x-hidden lg:h-[calc(100vh-120px)]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-[24px] font-bold tracking-tight">Notes</h1>
@@ -414,15 +414,17 @@ export function NotesView() {
             <Lock size={12} /> Second brain — markdown, media and voice, all encrypted at rest
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <SearchInput value={query} onChange={setQuery} placeholder="Search titles…" width={200} />
-          <Btn variant="primary" onClick={createNote}><Plus size={13} /> Note</Btn>
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+          <div className="flex-1 min-w-[140px] sm:w-[200px]">
+            <SearchInput value={query} onChange={setQuery} placeholder="Search titles…" />
+          </div>
+          <Btn variant="primary" onClick={createNote} className="shrink-0"><Plus size={13} /> Note</Btn>
         </div>
       </div>
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[196px_280px_1fr]">
         {/* folders */}
-        <div className="card engine-panel flex flex-col gap-1 overflow-y-auto p-2.5">
+        <div className={cn("card engine-panel flex flex-col gap-1 overflow-y-auto p-2.5", selId && "hidden lg:flex")}>
           {[{ id: "all", name: "All notes", emoji: "🗂️", pinned: false }, ...folders.map((f) => ({ id: f.id, name: f.name, emoji: f.id === "f-daily" ? "📅" : "📁", pinned: !!f.pinned }))].map((f) => {
             const count = f.id === "all" ? state.notes.length : state.notes.filter((n) => n.folderId === f.id).length;
             return (
@@ -466,7 +468,7 @@ export function NotesView() {
         </div>
 
         {/* list */}
-        <div className="card engine-panel flex min-h-0 flex-col p-2.5">
+        <div className={cn("card engine-panel flex min-h-0 flex-col p-2.5", selId && "hidden lg:flex")}>
           <div className="flex-1 overflow-y-auto pr-1">
             {notes.length === 0 && <EmptyState icon={Lock} title="No notes here" body="Create a note or open today’s daily note." />}
             {notes.map((n) => (
@@ -501,7 +503,18 @@ export function NotesView() {
         </div>
 
         {/* page editor */}
-        <div className="card engine-panel flex min-h-0 flex-col p-5">{editor(false)}</div>
+        <div className={cn("card engine-panel flex min-h-[400px] flex-col p-4 sm:p-5", !selId && "hidden lg:flex")}>
+          {selId && (
+            <button
+              onClick={() => setSelId(null)}
+              className="lg:hidden mb-3 inline-flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer"
+              style={{ color: "var(--accent)" }}
+            >
+              ← Back to notes
+            </button>
+          )}
+          {editor(false)}
+        </div>
       </div>
 
       {/* pop-out editor */}

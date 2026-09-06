@@ -288,7 +288,7 @@ export function CalendarView() {
   /* ---------------- month view ---------------- */
   if (view === "month") {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 w-full max-w-full overflow-x-hidden">
         <Header
           view={view}
           setView={setView}
@@ -412,7 +412,7 @@ export function CalendarView() {
 
   /* ---------------- day / 3day / week ---------------- */
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 w-full max-w-full overflow-x-hidden">
       <Header
         view={view}
         setView={setView}
@@ -668,7 +668,7 @@ function Header({
           </span>
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <Btn variant="soft" onClick={() => navigate(-1)} aria-label="Previous">
           <ChevronLeft size={14} />
         </Btn>

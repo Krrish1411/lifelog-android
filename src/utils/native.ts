@@ -58,15 +58,35 @@ export function initHardwareBackButton(onBack: () => boolean): () => void {
 }
 
 /**
- * Configure edge-to-edge immersive status bar for Android
+ * Initialize system bar insets and safe area measurements for Android.
+ * Sets --status-bar-height on :root so content never collides with notches or system status bars.
  */
-export async function configureStatusBar(isDark: boolean, bgHex = "#080b09"): Promise<void> {
+export async function initNativeSystemBars(): Promise<void> {
   if (!isNative) return;
   try {
-    await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
-    await StatusBar.setBackgroundColor({ color: bgHex });
-    await StatusBar.setOverlaysWebView({ overlay: false });
+    const info = await StatusBar.getInfo();
+    if (info && typeof info.height === "number" && info.height > 0) {
+      document.documentElement.style.setProperty("--status-bar-height", `${info.height}px`);
+    } else {
+      // Modern Android devices with front-camera notches have 28-36px status bar
+      document.documentElement.style.setProperty("--status-bar-height", "28px");
+    }
   } catch {
-    // Ignore on unsupported platforms
+    document.documentElement.style.setProperty("--status-bar-height", "28px");
+  }
+}
+
+/**
+ * Configure immersive status bar for Android.
+ * Inverts status bar icons (light vs dark) based on active theme for perfect contrast.
+ */
+export async function configureStatusBar(isDark: boolean): Promise<void> {
+  if (!isNative) return;
+  try {
+    // Style.Dark: Light text for dark backgrounds
+    // Style.Light: Dark text for light backgrounds
+    await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
+  } catch {
+    // Graceful fallback
   }
 }

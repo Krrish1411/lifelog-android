@@ -246,7 +246,7 @@ export function ReportsView() {
   );
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 w-full max-w-full overflow-x-hidden">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-[24px] font-bold tracking-tight">Reports</h1>
@@ -265,10 +265,10 @@ export function ReportsView() {
             {l}
           </button>
         ))}
-        <div className="ml-auto flex items-center gap-2 text-[12px] font-bold" style={{ color: "var(--mut)" }}>
-          <input type="date" className="inp w-[140px]" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setPreset("custom"); }} />
-          →
-          <input type="date" className="inp w-[140px]" value={to} min={from} onChange={(e) => { setTo(e.target.value); setPreset("custom"); }} />
+        <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold sm:ml-auto w-full sm:w-auto" style={{ color: "var(--mut)" }}>
+          <input type="date" className="inp flex-1 sm:flex-initial sm:w-[140px]" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setPreset("custom"); }} />
+          <span>→</span>
+          <input type="date" className="inp flex-1 sm:flex-initial sm:w-[140px]" value={to} min={from} onChange={(e) => { setTo(e.target.value); setPreset("custom"); }} />
         </div>
       </div>
 

@@ -526,7 +526,7 @@ export function Dashboard() {
 
   /* ================= the cockpit ================= */
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 w-full max-w-full overflow-x-hidden">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-[24px] font-bold leading-tight tracking-tight">
@@ -540,7 +540,7 @@ export function Dashboard() {
             {fmtDur(weekMin)} tracked this week · {dueTasks.length} open · {schedule.length} time block{schedule.length === 1 ? "" : "s"} today
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Btn variant="outline" onClick={() => setCustomizeOpen(true)}>
             <SlidersHorizontal size={13} /> Customize Bento
           </Btn>

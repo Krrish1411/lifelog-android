@@ -77,13 +77,20 @@ export function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fadein fixed inset-0 flex items-start justify-center overflow-y-auto p-4 pt-[7vh]"
-      style={{ background: "rgba(4,8,6,0.66)", backdropFilter: "blur(3px)", zIndex }}
+      className="fadein fixed inset-0 flex items-start justify-center overflow-y-auto p-3 sm:p-4"
+      style={{
+        background: "rgba(4,8,6,0.66)",
+        backdropFilter: "blur(3px)",
+        WebkitBackdropFilter: "blur(3px)",
+        zIndex,
+        paddingTop: "max(calc(var(--safe-top, 0px) + 12px), 4vh)",
+        paddingBottom: "max(calc(var(--safe-bottom, 0px) + 16px), 24px)",
+      }}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="pop w-full rounded-2xl border shadow-2xl"
-        style={{ maxWidth: width, background: "var(--panel)", borderColor: "var(--line)" }}
+        className="pop w-full max-w-[calc(100vw-24px)] rounded-2xl border shadow-2xl"
+        style={{ maxWidth: `min(${typeof width === "number" ? `${width}px` : width}, calc(100vw - 24px))`, background: "var(--panel)", borderColor: "var(--line)" }}
       >
         <div
           className="flex items-center justify-between border-b px-5 py-3.5"
@@ -334,10 +341,10 @@ export function SearchInput({
   autoFocus?: boolean;
 }) {
   return (
-    <span className="search-wrap" style={{ width }}>
+    <span className="search-wrap max-w-full" style={{ width, maxWidth: "100%" }}>
       <Search size={14} />
       <input
-        className="inp"
+        className="inp max-w-full"
         value={value}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}

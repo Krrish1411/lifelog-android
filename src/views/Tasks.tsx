@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Circle,
   Inbox,
   ListChecks,
@@ -524,9 +525,9 @@ export function TasksView() {
   );
 
   return (
-    <div className="flex gap-5">
-      {/* ================= smart panel ================= */}
-      <aside className="sticky top-5 h-fit w-[230px] shrink-0">
+    <div className="flex flex-col lg:flex-row gap-5 w-full max-w-full overflow-x-hidden">
+      {/* ================= smart panel (desktop only) ================= */}
+      <aside className="hidden lg:block sticky top-5 h-fit w-[230px] shrink-0">
         <div className="card engine-panel flex flex-col gap-0.5 p-2.5">
           <div
             className="mb-1 px-1.5 text-[10px] font-bold uppercase tracking-[0.14em]"
@@ -712,15 +713,176 @@ export function TasksView() {
       </aside>
 
       {/* ================= list ================= */}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="min-w-0 flex-1 w-full max-w-full">
+        {/* Mobile Filter Carousel (visible on mobile / tablet) */}
+        <div className="lg:hidden mb-3.5 -mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic("light");
+              setSel("inbox");
+            }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
+              sel === "inbox"
+                ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
+                : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
+            )}
+          >
+            <Inbox size={13} />
+            <span>Inbox</span>
+            {inboxCount > 0 && (
+              <span
+                className={cn(
+                  "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
+                  sel === "inbox" ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
+                )}
+              >
+                {inboxCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic("light");
+              setSel("today");
+            }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
+              sel === "today"
+                ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
+                : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
+            )}
+          >
+            <CalendarPlus size={13} />
+            <span>Today</span>
+            {todayCount > 0 && (
+              <span
+                className={cn(
+                  "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
+                  sel === "today" ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
+                )}
+              >
+                {todayCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic("light");
+              setSel("all");
+            }}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
+              sel === "all"
+                ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
+                : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
+            )}
+          >
+            <ListChecks size={13} />
+            <span>All</span>
+            <span
+              className={cn(
+                "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
+                sel === "all" ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
+              )}
+            >
+              {openTasks.length}
+            </span>
+          </button>
+
+          {/* Separator */}
+          {state.projects.length > 0 && <div className="h-4 w-[1px] bg-[var(--line)] shrink-0 mx-0.5" />}
+
+          {/* Projects */}
+          {state.projects.map((p) => {
+            const isSelected = viewKey(sel) === `p:${p.id}`;
+            const pCount = openTasks.filter((t) => t.projectId === p.id).length;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  triggerHaptic("light");
+                  setSel({ project: p.id });
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
+                  isSelected
+                    ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
+                    : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
+                )}
+              >
+                <span>{p.emoji}</span>
+                <span>{p.name}</span>
+                {pCount > 0 && (
+                  <span
+                    className={cn(
+                      "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
+                      isSelected ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
+                    )}
+                  >
+                    {pCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Tags Separator */}
+          {allTags.length > 0 && <div className="h-4 w-[1px] bg-[var(--line)] shrink-0 mx-0.5" />}
+
+          {/* Tags */}
+          {allTags.map((t) => {
+            const isSelected = viewKey(sel) === `t:${t}`;
+            const tCount = openTasks.filter((x) =>
+              x.tags.some((y) => y.toLowerCase() === t.toLowerCase())
+            ).length;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  triggerHaptic("light");
+                  setSel({ tag: t });
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
+                  isSelected
+                    ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
+                    : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
+                )}
+              >
+                {tagDot(t)}
+                <span>#{t}</span>
+                {tCount > 0 && (
+                  <span
+                    className={cn(
+                      "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
+                      isSelected ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
+                    )}
+                  >
+                    {tCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Task list header & controls */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
           <div>
-            <h1 className="font-display text-[24px] font-bold tracking-tight">{selTitle}</h1>
-            <p className="text-[12.5px] font-semibold" style={{ color: "var(--mut)" }}>
-              {list.length} open · {completed.length} completed (original details kept)
+            <h1 className="font-display text-[22px] sm:text-[24px] font-bold tracking-tight">{selTitle}</h1>
+            <p className="text-[12px] sm:text-[12.5px] font-semibold" style={{ color: "var(--mut)" }}>
+              {list.length} open · {completed.length} completed
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             {/* Sort selector */}
             <div className="flex items-center gap-0.5 bg-[var(--panel2)] p-0.5 rounded-xl border border-[var(--line)] text-xs shrink-0">
               <ArrowUpDown size={12} className="text-[var(--color-mut)] mx-1" />
@@ -736,12 +898,15 @@ export function TasksView() {
                       : { color: "var(--mut)", background: "transparent" }
                   }
                 >
-                  {m === "manual" ? "Manual" : m === "due" ? "Due date" : "Priority"}
+                  {m === "manual" ? "Manual" : m === "due" ? "Due" : "Priority"}
                 </button>
               ))}
             </div>
 
-            <SearchInput value={query} onChange={setQuery} placeholder="Search tasks…" width={180} />
+            <div className="flex-1 min-w-[120px] sm:w-[160px]">
+              <SearchInput value={query} onChange={setQuery} placeholder="Search tasks…" />
+            </div>
+
             <Btn
               variant="primary"
               onClick={() =>
@@ -749,8 +914,9 @@ export function TasksView() {
                   projectId: typeof sel === "object" && "project" in sel ? sel.project : undefined,
                 })
               }
+              className="shrink-0"
             >
-              <Plus size={13} /> Task
+              <Plus size={13} /> <span className="hidden xs:inline">Task</span>
             </Btn>
           </div>
         </div>
@@ -1091,38 +1257,79 @@ function TaskCard({
         </div>
       )}
       <div className="flex items-center gap-3 px-3 py-2.5">
-        {/* Super Productivity style drag handle in manual mode */}
+        {/* Reordering in manual mode: desktop drag handle + mobile up/down buttons */}
         {!done && sortMode === "manual" && (
-          <div
-            className="cursor-grab active:cursor-grabbing p-1 rounded text-[var(--color-mut)] hover:text-accent hover:bg-[var(--panel2)] transition-opacity opacity-0 group-hover/card:opacity-100 shrink-0"
-            title="Drag to reorder task"
-          >
-            <GripVertical size={14} />
+          <div className="flex items-center gap-0.5 shrink-0">
+            <div
+              className="cursor-grab active:cursor-grabbing p-1 rounded text-[var(--color-mut)] hover:text-accent hover:bg-[var(--panel2)] transition-opacity opacity-0 group-hover/card:opacity-100 shrink-0 hidden md:block"
+              title="Drag to reorder task"
+            >
+              <GripVertical size={14} />
+            </div>
+            {onMove && (
+              <div className="flex flex-col md:hidden -my-1">
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    triggerHaptic("light");
+                    onMove("up");
+                  }}
+                  className="p-1 rounded text-[var(--color-mut)] active:text-[var(--accent)] active:bg-[var(--panel2)] disabled:opacity-15 cursor-pointer"
+                  title="Move up"
+                  aria-label="Move task up"
+                >
+                  <ChevronUp size={13} />
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === totalInList - 1}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    triggerHaptic("light");
+                    onMove("down");
+                  }}
+                  className="p-1 rounded text-[var(--color-mut)] active:text-[var(--accent)] active:bg-[var(--panel2)] disabled:opacity-15 cursor-pointer"
+                  title="Move down"
+                  aria-label="Move task down"
+                >
+                  <ChevronDown size={13} />
+                </button>
+              </div>
+            )}
           </div>
         )}
 
-        <button
-          onClick={onToggle}
-          className={cn(
-            "flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-md border-[1.5px] transition-all hover:scale-110"
-          )}
-          style={{
-            borderColor: done ? "var(--ok)" : proj?.color ?? "var(--accent)",
-            background: done ? "var(--ok)" : "transparent",
-            cursor: "pointer",
-            opacity: snoozed ? 0.5 : 1,
-          }}
-          title={
-            done
-              ? "Reopen task"
-              : t.recurrence
-              ? "Complete occurrence (repeats)"
-              : "Complete task"
-          }
-          aria-label="Toggle done"
-        >
-          {done && <Check size={12} style={{ color: "var(--on-accent)" }} />}
-        </button>
+        <div className="flex items-center justify-center p-0.5 shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              triggerHaptic("medium");
+              onToggle();
+            }}
+            className={cn(
+              "flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-lg border-[2px] transition-transform active:scale-85 hover:scale-105"
+            )}
+            style={{
+              borderColor: done ? "var(--ok)" : proj?.color ?? "var(--accent)",
+              background: done ? "var(--ok)" : "transparent",
+              cursor: "pointer",
+              opacity: snoozed ? 0.5 : 1,
+            }}
+            title={
+              done
+                ? "Reopen task"
+                : t.recurrence
+                ? "Complete occurrence (repeats)"
+                : "Complete task"
+            }
+            aria-label="Toggle done"
+          >
+            {done && <Check size={14} strokeWidth={2.8} style={{ color: "var(--on-accent)" }} />}
+          </button>
+        </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -1227,7 +1434,7 @@ function TaskCard({
             {t.subtasks.length} steps
           </button>
         )}
-        <Btn size="sm" variant="ghost" onClick={onEdit} aria-label="Edit task">
+        <Btn size="sm" variant="ghost" onClick={onEdit} aria-label="Edit task" className="shrink-0">
           <Pencil size={13} />
         </Btn>
         {!done && (
@@ -1236,6 +1443,7 @@ function TaskCard({
             variant="soft"
             onClick={onFocus}
             title="Open in Focus — you choose the mode, nothing auto-starts"
+            className="shrink-0"
           >
             <Play size={12} />
           </Btn>

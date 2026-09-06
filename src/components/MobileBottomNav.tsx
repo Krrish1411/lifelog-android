@@ -41,7 +41,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         backdropFilter: "blur(18px)",
         WebkitBackdropFilter: "blur(18px)",
         borderTop: "1px solid var(--line)",
-        paddingBottom: "max(12px, env(safe-area-inset-bottom, 12px))",
+        paddingBottom: "max(12px, var(--safe-bottom, env(safe-area-inset-bottom, 12px)))",
       }}
       role="navigation"
       aria-label="Mobile Navigation Bar"
@@ -93,7 +93,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <button
           type="button"
           onClick={handleFab}
-          className="flex h-13 w-13 items-center justify-center rounded-full shadow-lg transition-transform active:scale-85 hover:scale-105 cursor-pointer"
+          className="flex h-[52px] w-[52px] items-center justify-center rounded-full shadow-lg transition-transform active:scale-85 hover:scale-105 cursor-pointer"
           style={{
             background: "var(--accent)",
             color: "var(--on-accent)",

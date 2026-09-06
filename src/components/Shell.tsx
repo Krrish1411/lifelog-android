@@ -17,7 +17,7 @@ import { CommandPalette } from "./CommandPalette";
 import { LiveAnnouncer } from "./LiveAnnouncer";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileMoreSheet } from "./MobileMoreSheet";
-import { initHardwareBackButton, configureStatusBar } from "../utils/native";
+import { initHardwareBackButton, configureStatusBar, initNativeSystemBars } from "../utils/native";
 import { Dashboard } from "../views/Dashboard";
 import { TasksView } from "../views/Tasks";
 import { FocusView } from "../views/Focus";
@@ -132,8 +132,9 @@ export function Shell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
-  // Android Native Status Bar Sync
+  // Android Native Status Bar & System Bars Sync
   useEffect(() => {
+    initNativeSystemBars();
     configureStatusBar(state.settings.themeMode === "dark");
   }, [state.settings.themeMode]);
 
@@ -323,56 +324,67 @@ export function Shell() {
   };
 
   const mobileBar = (
-    <div
-      className="sticky top-0 z-30 flex h-14 items-center justify-between border-b px-4 md:hidden"
-      style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+    <header
+      className="sticky top-0 z-30 flex flex-col border-b md:hidden select-none transition-colors"
+      style={{
+        background: "var(--panel)",
+        borderColor: "var(--line)",
+        paddingTop: "var(--safe-top)",
+      }}
     >
-      <div className="flex items-center gap-2.5">
-        <button
-          onClick={() => setMobileNavOpen((v) => !v)}
-          className="rounded-lg p-1.5 transition-colors hover:bg-[var(--panel2)]"
-          style={{ color: "var(--text)" }}
-          aria-label="Toggle navigation"
-        >
-          {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
-        <Logo small />
-        <span className="font-display text-[14px] font-bold">
-          {ALL_NAV.find((n) => n.id === view)?.label ?? view}
-        </span>
+      <div className="flex h-14 items-center justify-between px-3.5">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMobileNavOpen((v) => !v)}
+            className="rounded-xl p-2 transition-colors hover:bg-[var(--panel2)] active:scale-95 cursor-pointer"
+            style={{ color: "var(--text)" }}
+            aria-label="Toggle navigation"
+          >
+            {mobileNavOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <Logo small />
+          <span className="font-display text-[15px] font-bold truncate max-w-[130px] sm:max-w-[200px]">
+            {ALL_NAV.find((n) => n.id === view)?.label ?? view}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border transition-transform active:scale-95 cursor-pointer"
+            style={{ borderColor: "var(--line)", color: "var(--mut)", background: "var(--panel2)" }}
+            title="Command Palette"
+            aria-label="Command Palette"
+          >
+            <Search size={15} />
+          </button>
+          <Clock compact />
+          <button
+            onClick={() => openTaskDialog()}
+            className="flex h-9 w-9 items-center justify-center rounded-xl transition-transform active:scale-95 cursor-pointer"
+            style={{ background: "var(--accent)", color: "var(--on-accent)" }}
+            title="New task"
+          >
+            <Plus size={17} strokeWidth={2.5} />
+          </button>
+        </div>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setPaletteOpen(true)}
-          className="flex h-8 w-8 items-center justify-center rounded-xl border transition-transform active:scale-95"
-          style={{ borderColor: "var(--line)", color: "var(--mut)", background: "var(--panel2)" }}
-          title="Command Palette (Cmd+K)"
-          aria-label="Command Palette"
-        >
-          <Search size={15} />
-        </button>
-        <Clock compact />
-        <button
-          onClick={() => openTaskDialog()}
-          className="flex h-8 w-8 items-center justify-center rounded-xl transition-transform active:scale-95"
-          style={{ background: "var(--accent)", color: "var(--on-accent)" }}
-          title="New task"
-        >
-          <Plus size={16} />
-        </button>
-      </div>
-    </div>
+    </header>
   );
 
   const mobileDrawer = mobileNavOpen && (
     <div
       className="fixed inset-0 z-50 flex md:hidden"
-      style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+      style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
       onClick={() => setMobileNavOpen(false)}
     >
       <aside
-        className="flex h-full w-[260px] flex-col border-r p-4 shadow-2xl"
-        style={{ background: "var(--panel)", borderColor: "var(--line)" }}
+        className="flex h-full w-[280px] max-w-[85vw] flex-col border-r p-4 shadow-2xl"
+        style={{
+          background: "var(--panel)",
+          borderColor: "var(--line)",
+          paddingTop: "max(calc(var(--safe-top) + 12px), 16px)",
+          paddingBottom: "max(var(--safe-bottom), 16px)",
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
@@ -433,7 +445,7 @@ export function Shell() {
             </button>
           </div>
         </aside>
-        <main className="zoomable ml-0 w-full px-4 pt-4 pb-28 md:ml-[84px] md:w-[calc(100%-84px)] md:px-6 md:py-6">
+        <main className="zoomable ml-0 w-full max-w-full overflow-x-hidden px-4 pt-4 pb-32 md:ml-[84px] md:w-[calc(100%-84px)] md:px-6 md:py-6">
           <div className="w-full">{views[view]}</div>
         </main>
         <Overlays greeting={greeting} closeGreeting={closeGreeting} paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
@@ -462,7 +474,7 @@ export function Shell() {
           <Clock />
           <Btn variant="primary" size="sm" onClick={() => openTaskDialog()}><Plus size={13} /> Task</Btn>
         </header>
-        <main className="zoomable min-h-0 w-full flex-1 px-4 pt-4 pb-28 md:px-5 md:py-4">
+        <main className="zoomable min-h-0 w-full max-w-full overflow-x-hidden flex-1 px-4 pt-4 pb-32 md:px-5 md:py-4">
           <div className="w-full">{views[view]}</div>
         </main>
         <StatusBar dueToday={dueToday} todayMin={tracked.get(today) ?? 0} bestStreak={bestStreak} goFocus={() => setView("focus")} />
@@ -497,7 +509,7 @@ export function Shell() {
           </div>
         </aside>
         <div className="ml-0 flex min-h-screen w-full flex-col md:ml-[228px] md:w-[calc(100%-228px)]">
-          <main className="zoomable min-h-0 w-full flex-1 px-4 pt-4 pb-28 md:px-6 md:py-6">
+          <main className="zoomable min-h-0 w-full max-w-full overflow-x-hidden flex-1 px-4 pt-4 pb-32 md:px-6 md:py-6">
             <div className="w-full">{views[view]}</div>
           </main>
           <StatusBarDesk dueToday={dueToday} todayMin={tracked.get(today) ?? 0} bestStreak={bestStreak} goFocus={() => setView("focus")} />
@@ -550,7 +562,7 @@ export function Shell() {
               <button onClick={() => setZenConfig(false)} className="ml-auto text-[11.5px] font-bold" style={{ color: "var(--mut)", cursor: "pointer" }}>Done</button>
             </div>
           )}
-          <main className="zoomable min-h-0 w-full flex-1 px-4 pt-4 pb-28 md:px-6 md:py-5">
+          <main className="zoomable min-h-0 w-full max-w-full overflow-x-hidden flex-1 px-4 pt-4 pb-32 md:px-6 md:py-5">
             <div className="w-full">{views[view]}</div>
           </main>
         </div>
@@ -590,7 +602,7 @@ export function Shell() {
           <Btn variant="primary" onClick={() => openTaskDialog()}><Plus size={14} /> New task</Btn>
         </div>
       </aside>
-      <main className="zoomable relative z-10 ml-0 w-full px-4 pt-4 pb-28 md:ml-[272px] md:w-[calc(100%-272px)] md:px-7 md:py-6">
+      <main className="zoomable relative z-10 ml-0 w-full max-w-full overflow-x-hidden px-4 pt-4 pb-32 md:ml-[272px] md:w-[calc(100%-272px)] md:px-7 md:py-6">
         <div className="w-full">{views[view]}</div>
       </main>
       <Overlays greeting={greeting} closeGreeting={closeGreeting} paletteOpen={paletteOpen} setPaletteOpen={setPaletteOpen} />
@@ -765,7 +777,7 @@ function StatusBar({ dueToday, todayMin, bestStreak, goFocus }: { dueToday: numb
     return () => clearInterval(t);
   }, [running]);
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 flex h-[52px] items-center gap-4 border-t px-4 backdrop-blur-md"
+    <div className="fixed bottom-0 left-0 right-0 z-40 hidden md:flex h-[52px] items-center gap-4 border-t px-4 backdrop-blur-md"
       style={{ background: "color-mix(in srgb, var(--panel) 92%, transparent)", borderColor: "var(--line)" }}>
       <span className="chip !py-0.5 text-[11px]"><Flame size={11} style={{ color: "var(--accent)" }} /> {fmtDur(todayMin)} today</span>
       <span className="chip !py-0.5 text-[11px]"><ListTodo size={11} style={{ color: "var(--mut)" }} /> {dueToday} due</span>
@@ -795,7 +807,7 @@ function StatusBarDesk({ dueToday, todayMin, bestStreak, goFocus }: { dueToday: 
     return () => clearInterval(t);
   }, [running]);
   return (
-    <div className="fixed bottom-0 right-0 z-40 flex h-[52px] items-center gap-4 border-l border-t px-4 backdrop-blur-md"
+    <div className="fixed bottom-0 right-0 z-40 hidden md:flex h-[52px] items-center gap-4 border-l border-t px-4 backdrop-blur-md"
       style={{ background: "color-mix(in srgb, var(--panel) 92%, transparent)", borderColor: "var(--line)", left: "228px" }}>
       <span className="chip !py-0.5 text-[11px]"><Flame size={11} style={{ color: "var(--accent)" }} /> {fmtDur(todayMin)} today</span>
       <span className="chip !py-0.5 text-[11px]"><ListTodo size={11} style={{ color: "var(--mut)" }} /> {dueToday} due</span>
