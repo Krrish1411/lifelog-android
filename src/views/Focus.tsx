@@ -16,7 +16,12 @@ import {
 import type { Session, TimerMode, TaskTimeBlock } from "../types";
 import { useApp } from "../store";
 import { fmtClock, fmtDur, isoDate, sessionMinutes, todayIso, uid } from "../utils/core";
-import { playTimerChime, stopSoundscape } from "../utils/audio";
+import {
+  playTimerFinishSound,
+  playTimerStartSound,
+  stopSoundscape,
+  unlockAudioContext,
+} from "../utils/audio";
 import { Btn, EmptyState, SearchInput, Seg, cn } from "../components/ui";
 import {
   cancelTimerEndNotification,
@@ -138,8 +143,7 @@ export function FocusView() {
     triggerHaptic(kind === "done" ? "heavy" : "medium");
 
     if (kind === "done") {
-      playChimeSound();
-      playTimerChime(live.mode === "break" ? "break" : "complete");
+      playTimerFinishSound(live.mode === "break" ? "break" : "complete");
       if (
         settings.notifyEnabled &&
         "Notification" in window &&
@@ -227,6 +231,8 @@ export function FocusView() {
     setNow(ts);
     setStage(true);
     triggerHaptic("medium");
+    unlockAudioContext();
+    playTimerStartSound();
 
     if (plannedMin && plannedMin > 0) {
       scheduleTimerEndNotification(

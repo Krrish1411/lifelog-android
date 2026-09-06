@@ -100,20 +100,23 @@ export function playChimeSound(): void {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
     const now = ctx.currentTime;
-    const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+    const freqs = [528.0, 792.0, 1056.0]; // Meditative harmonic triad
     freqs.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.setValueAtTime(freq, now + idx * 0.12);
       gain.gain.setValueAtTime(0, now + idx * 0.12);
-      gain.gain.linearRampToValueAtTime(0.28, now + idx * 0.12 + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 1.2);
+      gain.gain.linearRampToValueAtTime(0.48 / (idx + 1), now + idx * 0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 1.8);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now + idx * 0.12);
-      osc.stop(now + idx * 0.12 + 1.25);
+      osc.stop(now + idx * 0.12 + 1.85);
     });
   } catch {
     // Graceful audio fallback
@@ -139,21 +142,27 @@ function hashStringToInt(str: string): number {
 export async function initNotificationChannels(): Promise<void> {
   if (!isNative) return;
   try {
+    // Delete legacy channels that lacked valid raw audio resources
+    try {
+      await LocalNotifications.deleteChannel({ id: "focus-timer" });
+      await LocalNotifications.deleteChannel({ id: "task-reminders" });
+    } catch {}
+
     await LocalNotifications.createChannel({
-      id: "focus-timer",
-      name: "Focus Timer Alerts",
-      description: "Alerts when Pomodoro, Countdown, or Break session finishes",
+      id: "focus-timer-v2",
+      name: "Focus & Pomodoro Timer",
+      description: "Audible alarms when Pomodoro, Countdown, or Break sessions finish",
       importance: 5, // High priority / Heads-up
-      sound: "default",
+      sound: "lifelog_bell.wav",
       visibility: 1,
       vibration: true,
     });
     await LocalNotifications.createChannel({
-      id: "task-reminders",
-      name: "Task Due Reminders",
-      description: "Notifications for upcoming and due tasks",
-      importance: 4,
-      sound: "default",
+      id: "task-reminders-v2",
+      name: "Task Due Alarms",
+      description: "Audible alarms for upcoming and scheduled tasks",
+      importance: 5,
+      sound: "lifelog_bell.wav",
       visibility: 1,
       vibration: true,
     });
@@ -224,8 +233,8 @@ export async function scheduleTaskDueNotification(
             title: leadMinutes > 0 ? `Task Due in ${leadMinutes}m ⏱️` : "Task Due Now ⏱️",
             body: task.title,
             schedule: { at: new Date(targetTime), allowWhileIdle: true },
-            channelId: "task-reminders",
-            sound: "default",
+            channelId: "task-reminders-v2",
+            sound: "lifelog_bell.wav",
           },
         ],
       });
@@ -273,8 +282,8 @@ export async function scheduleTimerEndNotification(
             ? `Completed: "${title}". Great job! Tap to review.`
             : "Session ended. Time to stretch or start your next block.",
           schedule: { at: targetDate, allowWhileIdle: true },
-          channelId: "focus-timer",
-          sound: "default",
+          channelId: "focus-timer-v2",
+          sound: "lifelog_bell.wav",
         },
       ],
     });
@@ -312,8 +321,8 @@ export async function sendNativeTestNotification(): Promise<void> {
           title: "LifeLog Notification 🚀",
           body: "Native Android notifications are active! Alarms will fire even when the app is closed.",
           schedule: { at: new Date(Date.now() + 500), allowWhileIdle: true },
-          channelId: "task-reminders",
-          sound: "default",
+          channelId: "task-reminders-v2",
+          sound: "lifelog_bell.wav",
         },
       ],
     });

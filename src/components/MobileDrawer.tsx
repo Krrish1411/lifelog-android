@@ -10,11 +10,13 @@ import {
   X,
   CheckSquare,
   Trash2,
+  Pencil,
 } from "lucide-react";
 import type { Priority, Project, ViewId } from "../types";
 import { useApp } from "../store";
 import { triggerHaptic } from "../utils/native";
-import { cn } from "./ui";
+import { normalizeHex } from "../utils/core";
+import { Btn, ColorPicker, EmojiPicker, Labeled, Modal, TextInput, cn } from "./ui";
 
 interface MobileDrawerProps {
   open: boolean;
@@ -123,6 +125,75 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
       };
     });
     toast(`Deleted tag "#${tag}"`, "warn");
+  };
+
+  // Editing state for projects
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projName, setProjName] = useState("");
+  const [projEmoji, setProjEmoji] = useState("📁");
+  const [projColor, setProjColor] = useState("#4fa3a5");
+
+  // Editing state for tags
+  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [tagName, setTagName] = useState("");
+  const [tagColor, setTagColor] = useState("#e8a33d");
+
+  const openEditProject = (e: React.MouseEvent, p: Project) => {
+    e.stopPropagation();
+    triggerHaptic("light");
+    setEditingProject(p);
+    setProjName(p.name);
+    setProjEmoji(p.emoji || "📁");
+    setProjColor(p.color || "#4fa3a5");
+  };
+
+  const saveEditProject = () => {
+    if (!projName.trim()) return toast("Project needs a name", "err");
+    if (!editingProject) return;
+    set((s) => ({
+      ...s,
+      projects: s.projects.map((p) =>
+        p.id === editingProject.id
+          ? { ...p, name: projName.trim(), emoji: projEmoji, color: projColor }
+          : p
+      ),
+    }));
+    toast("Project updated", "ok");
+    setEditingProject(null);
+  };
+
+  const openEditTag = (e: React.MouseEvent, t: string) => {
+    e.stopPropagation();
+    triggerHaptic("light");
+    setEditingTag(t);
+    setTagName(t);
+    setTagColor(state.tagColors[t] ?? "#e8a33d");
+  };
+
+  const saveEditTag = () => {
+    const old = editingTag;
+    const next = tagName.trim();
+    if (!old) return;
+    if (!next) return toast("Tag needs a name", "err");
+    set((s) => {
+      const tagColors = { ...s.tagColors };
+      delete tagColors[old];
+      tagColors[next] = normalizeHex(tagColor) ?? tagColor;
+      return {
+        ...s,
+        tagColors,
+        tasks:
+          next === old
+            ? s.tasks
+            : s.tasks.map((t) =>
+                t.tags.includes(old)
+                  ? { ...t, tags: t.tags.map((x) => (x === old ? next : x)) }
+                  : t
+              ),
+      };
+    });
+    toast(next === old ? "Tag colour updated" : `Tag renamed to “${next}”`, "ok");
+    setEditingTag(null);
   };
 
   return (
@@ -286,9 +357,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                         )}
                         <button
                           type="button"
+                          onClick={(e) => openEditProject(e, p)}
+                          className="opacity-70 hover:opacity-100 p-1.5 rounded-md text-[var(--mut)] hover:text-[var(--text)] hover:bg-[var(--panel2)] transition-all cursor-pointer"
+                          title={`Edit "${p.name}"`}
+                          aria-label={`Edit ${p.name}`}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={(e) => handleDeleteProject(e, p)}
-                          className="opacity-70 hover:opacity-100 p-1 rounded-md text-[var(--mut)] hover:text-[var(--danger)] transition-all cursor-pointer"
+                          className="opacity-70 hover:opacity-100 p-1.5 rounded-md text-[var(--mut)] hover:text-[var(--danger)] hover:bg-[var(--panel2)] transition-all cursor-pointer"
                           title={`Delete "${p.name}"`}
+                          aria-label={`Delete ${p.name}`}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -347,9 +428,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                           )}
                           <button
                             type="button"
+                            onClick={(e) => openEditTag(e, t)}
+                            className="opacity-70 hover:opacity-100 p-1.5 rounded-md text-[var(--mut)] hover:text-[var(--text)] hover:bg-[var(--panel2)] transition-all cursor-pointer"
+                            title={`Edit tag "#${t}"`}
+                            aria-label={`Edit tag ${t}`}
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            type="button"
                             onClick={(e) => handleDeleteTag(e, t)}
-                            className="opacity-70 hover:opacity-100 p-1 rounded-md text-[var(--mut)] hover:text-[var(--danger)] transition-all cursor-pointer"
+                            className="opacity-70 hover:opacity-100 p-1.5 rounded-md text-[var(--mut)] hover:text-[var(--danger)] hover:bg-[var(--panel2)] transition-all cursor-pointer"
                             title={`Delete tag "#${t}"`}
+                            aria-label={`Delete tag ${t}`}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -433,6 +524,137 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           </div>
         </div>
       </aside>
+
+      {/* ================= project edit modal ================= */}
+      <Modal
+        open={!!editingProject}
+        onClose={() => setEditingProject(null)}
+        title="Edit project"
+        width={480}
+        footer={
+          <>
+            <Btn
+              variant="danger"
+              className="mr-auto"
+              onClick={async () => {
+                if (!editingProject) return;
+                const p = editingProject;
+                setEditingProject(null);
+                const count = state.tasks.filter((t) => t.projectId === p.id).length;
+                const ok = await confirm({
+                  title: `Delete project "${p.name}"?`,
+                  body: `This project and its ${count} task(s) will be permanently deleted. Tracked time history remains in reports.`,
+                  confirmLabel: "Delete project",
+                  danger: true,
+                  requireText: p.name,
+                });
+                if (!ok) return;
+                set((s) => ({
+                  ...s,
+                  projects: s.projects.filter((x) => x.id !== p.id),
+                  tasks: s.tasks.filter((t) => t.projectId !== p.id),
+                }));
+                toast(`Deleted project "${p.name}"`, "warn");
+              }}
+            >
+              <Trash2 size={13} /> Delete project
+            </Btn>
+            <Btn variant="ghost" onClick={() => setEditingProject(null)}>
+              Cancel
+            </Btn>
+            <Btn variant="primary" onClick={saveEditProject}>
+              Save
+            </Btn>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <Labeled label="Name">
+            <TextInput
+              autoFocus
+              value={projName}
+              onChange={(e) => setProjName(e.target.value)}
+              placeholder="e.g. Side project"
+            />
+          </Labeled>
+          <Labeled label="Emoji">
+            <EmojiPicker value={projEmoji} onChange={setProjEmoji} />
+          </Labeled>
+          <Labeled label="Colour" hint="custom hex always available">
+            <ColorPicker value={projColor} onChange={setProjColor} />
+          </Labeled>
+        </div>
+      </Modal>
+
+      {/* ================= tag edit modal ================= */}
+      <Modal
+        open={!!editingTag}
+        onClose={() => setEditingTag(null)}
+        title={
+          <>
+            Edit tag —{" "}
+            <span style={{ color: state.tagColors[editingTag ?? ""] ?? "var(--accent)" }}>
+              #{editingTag}
+            </span>
+          </>
+        }
+        width={440}
+        footer={
+          <>
+            <Btn
+              variant="danger"
+              className="mr-auto"
+              onClick={async () => {
+                if (!editingTag) return;
+                const tag = editingTag;
+                setEditingTag(null);
+                const count = state.tasks.filter((t) => t.tags.includes(tag)).length;
+                const ok = await confirm({
+                  title: `Delete tag "#${tag}"?`,
+                  body: `This tag will be removed from ${count} task(s). The tasks themselves stay intact.`,
+                  confirmLabel: "Delete tag",
+                  danger: true,
+                });
+                if (!ok) return;
+                set((s) => {
+                  const tagColors = { ...s.tagColors };
+                  delete tagColors[tag];
+                  return {
+                    ...s,
+                    tagColors,
+                    tasks: s.tasks.map((t) =>
+                      t.tags.includes(tag) ? { ...t, tags: t.tags.filter((x) => x !== tag) } : t
+                    ),
+                  };
+                });
+                toast(`Deleted tag "#${tag}"`, "warn");
+              }}
+            >
+              <Trash2 size={13} /> Delete tag
+            </Btn>
+            <Btn variant="ghost" onClick={() => setEditingTag(null)}>
+              Cancel
+            </Btn>
+            <Btn variant="primary" onClick={saveEditTag}>
+              Save
+            </Btn>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <Labeled label="Name" hint="casing is preserved exactly">
+            <TextInput
+              autoFocus
+              value={tagName}
+              onChange={(e) => setTagName(e.target.value)}
+              placeholder="tag name"
+            />
+          </Labeled>
+          <Labeled label="Colour">
+            <ColorPicker value={tagColor} onChange={setTagColor} />
+          </Labeled>
+        </div>
+      </Modal>
     </div>
   );
 };

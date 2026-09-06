@@ -5,7 +5,7 @@
 
 let audioCtx: AudioContext | null = null;
 
-function getAudioContext(): AudioContext | null {
+export function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
   try {
     const AudioContextClass =
@@ -15,36 +15,50 @@ function getAudioContext(): AudioContext | null {
     if (!audioCtx || audioCtx.state === "closed") {
       audioCtx = new AudioContextClass();
     }
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
     return audioCtx;
   } catch {
     return null;
   }
 }
 
-export function playTimerChime(type: "complete" | "break" = "complete"): void {
+/**
+ * Ensures the Web Audio context is resumed on direct user touch/click.
+ */
+export function unlockAudioContext(): void {
+  const ctx = getAudioContext();
+  if (ctx && ctx.state === "suspended") {
+    ctx.resume().catch(() => {});
+  }
+}
+
+/**
+ * Inspiring, crisp upward start chime when countdown/Pomodoro begins.
+ */
+export function playTimerStartSound(): void {
   try {
     const ctx = getAudioContext();
     if (!ctx) return;
-
     if (ctx.state === "suspended") {
       ctx.resume().catch(() => {});
     }
 
     const now = ctx.currentTime;
-    const freqs = type === "complete" ? [659.25, 987.77, 1318.51] : [523.25, 659.25, 783.99];
-
-    freqs.forEach((freq, idx) => {
+    const notes = [698.46, 880.0]; // F5 -> A5
+    notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
 
       osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+      osc.frequency.setValueAtTime(freq, now + idx * 0.1);
 
-      const startTime = now + idx * 0.12;
-      const duration = 1.2;
+      const startTime = now + idx * 0.1;
+      const duration = 0.75;
 
       gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.18 / (idx + 1), startTime + 0.02);
+      gain.gain.linearRampToValueAtTime(0.42 / (idx + 1), startTime + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
 
       osc.connect(gain);
@@ -54,8 +68,52 @@ export function playTimerChime(type: "complete" | "break" = "complete"): void {
       osc.stop(startTime + duration);
     });
   } catch {
-    // Audio autoplay restrictions or unsupported
+    // Audio autoplay restrictions
   }
+}
+
+/**
+ * Resonant, harmonic Tibetan singing bell chime when timer or break finishes.
+ * Boosted ~2.5x louder with smooth harmonic envelope without clipping.
+ */
+export function playTimerFinishSound(type: "complete" | "break" = "complete"): void {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+
+    const now = ctx.currentTime;
+    const freqs = type === "complete" ? [528.0, 792.0, 1056.0] : [440.0, 659.25, 880.0];
+
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+      const startTime = now + idx * 0.12;
+      const duration = 2.0;
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.48 / (idx + 1), startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    });
+  } catch {
+    // Audio autoplay restrictions
+  }
+}
+
+export function playTimerChime(type: "complete" | "break" = "complete"): void {
+  playTimerFinishSound(type);
 }
 
 export type AmbientTrackId =

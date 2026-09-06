@@ -70,12 +70,6 @@ export function Dashboard() {
   const [moodEmoji, setMoodEmoji] = useState<string | null>(null);
   const [mood, setMood] = useState("");
   const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [quoteIdx, setQuoteIdx] = useState(0);
-
-  const quoteOfTheDay = useMemo(() => {
-    const pool = [...QUOTES, ...state.settings.customQuotes.filter((q) => q.trim())];
-    return pool[(new Date().getDate() + quoteIdx) % pool.length] ?? QUOTES[0];
-  }, [state.settings.customQuotes, quoteIdx]);
 
   const widgets = state.settings.dashboardWidgets ?? {};
   const toggleWidget = (k: string) => {
@@ -579,80 +573,31 @@ export function Dashboard() {
     </div>
   );
 
-  const greetingCard = () => {
-    const hour = new Date().getHours();
-    const name = state.settings.profileName.trim();
-    return (
-      <div
-        className="card card-hover p-4 min-w-0 w-full relative overflow-hidden flex flex-col gap-3"
-        style={{
-          borderColor: "color-mix(in srgb, var(--accent) 40%, var(--line))",
-          background: "linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--panel)), var(--panel))",
-          boxShadow: "0 4px 20px -10px var(--accent)",
-        }}
-      >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--accent)" }}>
-              <Sparkles size={13} /> {fmtDateLong(new Date())}
-            </div>
-            <h2 className="font-display text-[20px] sm:text-[22px] font-bold mt-0.5 text-[var(--text)]">
-              {greetingFor(hour)}{name ? `, ${name}` : ""}!
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic("light");
-              setQuoteIdx((i) => i + 1);
-            }}
-            className="flex items-center gap-1 text-[11px] font-bold text-[var(--mut)] hover:text-[var(--accent)] transition-colors p-1.5 rounded-lg hover:bg-[var(--panel2)] cursor-pointer"
-            title="Cycle inspirational quote"
-          >
-            <RotateCcw size={12} />
-            <span className="hidden sm:inline">New quote</span>
-          </button>
-        </div>
-
-        <div
-          className="rounded-xl border p-3 flex items-start gap-2.5"
-          style={{ borderColor: "var(--line)", background: "var(--panel2)" }}
-        >
-          <Quote size={17} className="mt-0.5 shrink-0 text-accent" />
-          <p className="text-[13px] sm:text-[13.5px] font-semibold italic text-[var(--text)] leading-snug">
-            "{quoteOfTheDay}"
-          </p>
-        </div>
-
-        <div className="flex items-center justify-between text-[11.5px] font-medium pt-0.5" style={{ color: "var(--mut)" }}>
-          <span>{dueTasks.length} {dueTasks.length === 1 ? "task" : "tasks"} due today · {fmtDur(todayMin)} focused</span>
-          <span className="font-bold text-accent">Ready to flow</span>
-        </div>
-      </div>
-    );
-  };
-
   /* ================= the cockpit ================= */
   return (
     <div className="flex flex-col gap-4 w-full max-w-full min-w-0 overflow-x-hidden">
-      <div className="flex flex-wrap items-end justify-between gap-3 min-w-0 w-full">
-        <div className="min-w-0 flex-1">
-          <h1 className="font-display text-[22px] sm:text-[24px] font-bold leading-tight tracking-tight truncate">
+      {/* Top Cockpit Header: Full width greeting on mobile, no truncation */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 min-w-0 w-full">
+        <div className="min-w-0 w-full sm:flex-1">
+          <div className="flex items-center gap-1.5 text-[11px] sm:text-[11.5px] font-bold uppercase tracking-[0.13em]" style={{ color: "var(--accent)" }}>
+            <Sparkles size={13} className="shrink-0" />
+            <span>{fmtDateLong(new Date())}</span>
+          </div>
+          <h1 className="font-display text-[22px] sm:text-[26px] font-bold leading-tight tracking-tight text-[var(--text)] mt-0.5 break-words">
             {greetingFor(new Date().getHours())}
             {state.settings.profileName.trim() ? `, ${state.settings.profileName.trim()}` : ""}
           </h1>
-          <div className="text-[11px] sm:text-[11.5px] font-bold uppercase tracking-[0.13em]" style={{ color: "var(--accent)" }}>
-            {fmtDateLong(new Date())}
-          </div>
-          <p className="mt-0.5 text-[12.5px] sm:text-[13px] font-semibold truncate" style={{ color: "var(--mut)" }}>
+          <p className="mt-1 text-[12px] sm:text-[13px] font-semibold text-[var(--mut)] break-words">
             {fmtDur(weekMin)} tracked this week · {dueTasks.length} open · {schedule.length} block{schedule.length === 1 ? "" : "s"} today
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
           <Btn variant="outline" size="sm" onClick={() => setCustomizeOpen(true)}>
-            <SlidersHorizontal size={13} /> Customize Bento
+            <SlidersHorizontal size={13} /> <span className="hidden sm:inline">Customize Bento</span><span className="sm:hidden">Customize</span>
           </Btn>
-          <Btn variant="primary" size="sm" onClick={() => openTaskDialog({ presetDate: today })}><Plus size={13} /> Task</Btn>
+          <Btn variant="primary" size="sm" onClick={() => openTaskDialog({ presetDate: today })}>
+            <Plus size={13} /> Task
+          </Btn>
         </div>
       </div>
 
@@ -759,7 +704,6 @@ export function Dashboard() {
       {/* ------- main grid ------- */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr] w-full min-w-0">
         <div className="stagger flex flex-col gap-4 w-full min-w-0">
-          {widgets.greeting !== false && greetingCard()}
           {widgets.dayCheckin !== false && checkinCard()}
           {widgets.upcomingSchedule !== false && scheduleCard()}
           {widgets.quickTasks !== false && planCard()}

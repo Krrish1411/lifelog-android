@@ -19,6 +19,11 @@ const config: CapacitorConfig = {
       backgroundColor: "#080b09",
       overlaysWebView: true,
     },
+    LocalNotifications: {
+      smallIcon: "ic_launcher",
+      iconColor: "#4fa3a5",
+      sound: "lifelog_bell.wav",
+    },
   },
 };
 

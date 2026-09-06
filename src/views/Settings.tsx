@@ -10,6 +10,7 @@ import { contrast, download, ensureContrast, normalizeHex, todayIso } from "../u
 import { CUSTOM_FONT_FAMILY, readFileAsDataUrl, saveCustomFont } from "../utils/fonts";
 import { clearIDB, saveErasedFlag } from "../utils/idb";
 import { Btn, ColorPicker, Labeled, Modal, Seg, TextInput, Toggle, cn } from "../components/ui";
+import { playTimerFinishSound, playTimerStartSound } from "../utils/audio";
 import {
   checkNativeNotificationPermission,
   isNative,
@@ -537,7 +538,7 @@ export function SettingsView() {
                 )}
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex flex-wrap items-center gap-2 pt-1">
                 <Btn
                   size="sm"
                   variant="outline"
@@ -547,7 +548,29 @@ export function SettingsView() {
                   }}
                   className="gap-1.5 text-[11.5px]"
                 >
-                  <Volume2 size={13} /> Send test notification & play chime
+                  <Volume2 size={13} /> Test Notification
+                </Btn>
+                <Btn
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    playTimerStartSound();
+                    toast("Played start chime", "ok");
+                  }}
+                  className="gap-1.5 text-[11.5px]"
+                >
+                  <Volume2 size={13} /> Test Start Chime
+                </Btn>
+                <Btn
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    playTimerFinishSound();
+                    toast("Played finish chime", "ok");
+                  }}
+                  className="gap-1.5 text-[11.5px]"
+                >
+                  <Volume2 size={13} /> Test Finish Chime
                 </Btn>
               </div>
             </div>
