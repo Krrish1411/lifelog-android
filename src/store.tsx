@@ -32,6 +32,7 @@ import {
   scheduleTaskDueNotification,
   triggerHaptic,
 } from "./utils/native";
+import { syncEngine } from "./sync/syncEngine";
 
 const LS_KEY = "lifelog.state.v1";
 /** When set, a missing state file boots into a blank app instead of demo data. */
@@ -93,11 +94,15 @@ interface AppCtx {
   taskDialog: TaskDialogState;
   openTaskDialog: (o?: Partial<TaskDialogState>) => void;
   closeTaskDialog: () => void;
+  syncDialogOpen: boolean;
+  openSyncDialog: () => void;
+  closeSyncDialog: () => void;
   confirm: (o: ConfirmOpts) => Promise<boolean>;
   confirmReq: (ConfirmOpts & { open: boolean }) | null;
   resolveConfirm: (v: boolean) => void;
   toggleDone: (taskId: string) => void;
 }
+
 
 const Ctx = createContext<AppCtx | null>(null);
 
@@ -155,9 +160,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [view, setView] = useState<ViewId>("dashboard");
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   const [taskDialog, setTaskDialog] = useState<TaskDialogState>({ open: false, taskId: null });
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const openSyncDialog = useCallback(() => setSyncDialogOpen(true), []);
+  const closeSyncDialog = useCallback(() => setSyncDialogOpen(false), []);
   const [confirmReq, setConfirmReq] = useState<(ConfirmOpts & { open: boolean }) | null>(null);
   const confirmResolve = useRef<((v: boolean) => void) | null>(null);
   const warnedCrypto = useRef(false);
+
+  /* ----- sync engine listener for incoming remote changes ----- */
+  useEffect(() => {
+    return syncEngine.onStateApply((updater) => {
+      setState((prev) => (prev ? updater(prev) : prev));
+    });
+  }, []);
 
   /* ----- boot: decrypt at-rest state, or seed on first run ----- */
   useEffect(() => {
@@ -375,13 +390,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
             taskDialog,
             openTaskDialog,
             closeTaskDialog,
+            syncDialogOpen,
+            openSyncDialog,
+            closeSyncDialog,
             confirm,
             confirmReq,
             resolveConfirm,
             toggleDone,
           }
         : null,
-    [state, set, toast, view, focusTaskId, taskDialog, confirmReq, requestFocus, clearFocusRequest, openTaskDialog, closeTaskDialog, confirm, resolveConfirm, toggleDone],
+    [state, set, toast, view, focusTaskId, taskDialog, syncDialogOpen, confirmReq, requestFocus, clearFocusRequest, openTaskDialog, closeTaskDialog, openSyncDialog, closeSyncDialog, confirm, resolveConfirm, toggleDone],
   );
 
   if (!value) {

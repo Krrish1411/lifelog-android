@@ -20,10 +20,12 @@ import {
   Square,
   Sun,
   Timer,
+  Radio,
 } from "lucide-react";
 import type { Priority, TokenKey, ViewId } from "../types";
 import { FONT_PAIRS, QUOTES } from "../types";
 import { useApp } from "../store";
+import { syncEngine } from "../sync/syncEngine";
 import {
   ensureContrast,
   fmtDateLong,
@@ -40,6 +42,7 @@ import { playTimerChime } from "../utils/audio";
 import { CUSTOM_FONT_FAMILY } from "../utils/fonts";
 import { Btn, Modal, TextInput, cn } from "./ui";
 import { TaskDialog } from "./TaskDialog";
+import { SyncDialog } from "./SyncDialog";
 import { CommandPalette } from "./CommandPalette";
 import { LiveAnnouncer } from "./LiveAnnouncer";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -136,13 +139,36 @@ function Logo({ small = false }: { small?: boolean }) {
 /* ================================================================ */
 export function Shell() {
   const app = useApp();
-  const { state, set, view, setView, openTaskDialog, toast } = app;
+  const { state, set, view, setView, openTaskDialog, openSyncDialog, toast } = app;
   const [greeting, setGreeting] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [syncStatus, setSyncStatus] = useState(syncEngine.getStatus());
   const [taskFilter, setTaskFilter] = useState<
     "inbox" | "today" | "all" | { project: string } | { tag: string } | { priority: Priority }
   >("today");
+
+  // Sync engine connection status listener
+  useEffect(() => {
+    return syncEngine.onStatusChange((s) => setSyncStatus(s));
+  }, []);
+
+  // Desktop keyboard shortcuts: Ctrl+K / Cmd+K (Palette), Ctrl+N / Cmd+N (Task)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((o) => !o);
+      } else if (mod && e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        openTaskDialog();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [openTaskDialog]);
 
   // Android Native Status Bar & System Bars Sync
   useEffect(() => {
@@ -379,6 +405,28 @@ export function Shell() {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* P2P Sync button */}
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("light");
+                openSyncDialog();
+              }}
+              className="relative flex h-9 w-9 items-center justify-center rounded-xl border transition-transform active:scale-95 cursor-pointer"
+              style={{
+                borderColor: syncStatus === "connected" ? "rgba(16, 185, 129, 0.5)" : "var(--line)",
+                color: syncStatus === "connected" ? "#10b981" : "var(--mut)",
+                background: syncStatus === "connected" ? "rgba(16, 185, 129, 0.1)" : "var(--panel2)",
+              }}
+              title={syncStatus === "connected" ? "P2P Sync: Connected" : "Device-to-Device Sync"}
+              aria-label="Device Sync"
+            >
+              <Radio size={15} className={syncStatus === "connected" ? "animate-pulse text-emerald-400" : ""} />
+              {syncStatus === "connected" && (
+                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-[var(--panel)]" />
+              )}
+            </button>
+
             {/* Theme quick toggle */}
             <button
               type="button"
@@ -595,7 +643,7 @@ function Overlays({
   onCloseDrawer?: () => void;
   onToggleTheme: () => void;
 }) {
-  const { state, set, toast, view, setView, openTaskDialog, confirmReq, resolveConfirm, taskDialog, closeTaskDialog } = useApp();
+  const { state, set, toast, view, setView, openTaskDialog, confirmReq, resolveConfirm, taskDialog, closeTaskDialog, syncDialogOpen, closeSyncDialog } = useApp();
   const [confirmText, setConfirmText] = useState("");
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const [namePromptInput, setNamePromptInput] = useState(state.settings.profileName || "");
@@ -788,6 +836,7 @@ function Overlays({
       </Modal>
 
       <TaskDialog />
+      <SyncDialog open={syncDialogOpen} onClose={closeSyncDialog} />
       <LiveAnnouncer />
 
       <CommandPalette

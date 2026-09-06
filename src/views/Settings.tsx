@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Download, Lock, Palette, Quote, RotateCcw, Sparkles, Trash2, Upload, Volume2 } from "lucide-react";
+import { Bell, Download, Lock, Palette, Quote, RotateCcw, Sparkles, Trash2, Upload, Volume2, Radio } from "lucide-react";
 import type { LayoutMode, State, ThemeMode, TokenKey } from "../types";
 import {
   DEFAULT_SETTINGS, FONT_PAIRS, QUOTES, REPORT_WIDGETS, STATE_VERSION,
@@ -34,7 +34,7 @@ const TOKEN_ROWS: { key: TokenKey; label: string; desc: string }[] = [
 
 export function SettingsView() {
   const app = useApp();
-  const { state, set, toast, confirm } = app;
+  const { state, set, toast, confirm, openSyncDialog } = app;
   const s = state.settings;
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
@@ -647,6 +647,25 @@ export function SettingsView() {
                 <Toggle checked={!!s.reportWidgets[rw.key]} onChange={(v) => patch({ reportWidgets: { ...s.reportWidgets, [rw.key]: v } })} />
               </div>
             ))}
+          </div>
+        ), true)}
+
+        {section("Device-to-Device Sync (P2P)", "End-to-end encrypted (AES-256-GCM) direct synchronization between your phone and computer without any cloud servers.", (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-xl border p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 font-bold text-[13px] text-[var(--text)]">
+                  <Radio size={15} className="text-emerald-500 animate-pulse" />
+                  <span>Zero-Cloud Peer-to-Peer Pairing</span>
+                </div>
+                <div className="text-[11.5px] text-[var(--mut)]">
+                  Pair with QR code or session ticket. Once paired, tasks, notes, habits, and focus logs sync continuously in real-time.
+                </div>
+              </div>
+              <Btn variant="primary" onClick={openSyncDialog} className="shrink-0">
+                <Radio size={13} /> Open P2P Sync Pair
+              </Btn>
+            </div>
           </div>
         ), true)}
 
