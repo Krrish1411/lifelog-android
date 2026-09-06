@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 import { App as CapApp } from "@capacitor/app";
 import { StatusBar, Style } from "@capacitor/status-bar";
+import { LocalNotifications } from "@capacitor/local-notifications";
 
 export const isNative = Capacitor.isNativePlatform();
 
@@ -87,5 +88,234 @@ export async function configureStatusBar(isDark: boolean, bgColor?: string): Pro
     await StatusBar.setBackgroundColor({ color: bg });
   } catch {
     // Graceful fallback
+  }
+}
+
+/**
+ * High-fidelity in-app synthesized bell chime using Web Audio API.
+ * Plays a warm 3-tone harmonic chime (C5 → E5 → G5) without relying on external mp3 assets.
+ */
+export function playChimeSound(): void {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const freqs = [523.25, 659.25, 783.99]; // C5, E5, G5
+    freqs.forEach((freq, idx) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+      gain.gain.setValueAtTime(0, now + idx * 0.12);
+      gain.gain.linearRampToValueAtTime(0.28, now + idx * 0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 1.2);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + idx * 0.12);
+      osc.stop(now + idx * 0.12 + 1.25);
+    });
+  } catch {
+    // Graceful audio fallback
+  }
+}
+
+/**
+ * Deterministically hash any string ID to a 32-bit positive integer
+ * required by Capacitor LocalNotifications.
+ */
+function hashStringToInt(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) || 1;
+}
+
+/**
+ * Initialize Android notification channels with sound and vibration enabled.
+ */
+export async function initNotificationChannels(): Promise<void> {
+  if (!isNative) return;
+  try {
+    await LocalNotifications.createChannel({
+      id: "focus-timer",
+      name: "Focus Timer Alerts",
+      description: "Alerts when Pomodoro, Countdown, or Break session finishes",
+      importance: 5, // High priority / Heads-up
+      sound: "default",
+      visibility: 1,
+      vibration: true,
+    });
+    await LocalNotifications.createChannel({
+      id: "task-reminders",
+      name: "Task Due Reminders",
+      description: "Notifications for upcoming and due tasks",
+      importance: 4,
+      sound: "default",
+      visibility: 1,
+      vibration: true,
+    });
+  } catch (err) {
+    console.warn("Could not register notification channels:", err);
+  }
+}
+
+/**
+ * Request system notification permissions on Android (POST_NOTIFICATIONS).
+ */
+export async function requestNativeNotificationPermission(): Promise<boolean> {
+  if (!isNative) {
+    if ("Notification" in window) {
+      const p = await Notification.requestPermission();
+      return p === "granted";
+    }
+    return false;
+  }
+  try {
+    const status = await LocalNotifications.checkPermissions();
+    if (status.display === "granted") return true;
+    const req = await LocalNotifications.requestPermissions();
+    return req.display === "granted";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check current notification permission status.
+ */
+export async function checkNativeNotificationPermission(): Promise<boolean> {
+  if (!isNative) {
+    return "Notification" in window && Notification.permission === "granted";
+  }
+  try {
+    const status = await LocalNotifications.checkPermissions();
+    return status.display === "granted";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Schedule a native reminder for a task using Android AlarmManager.
+ * Runs even if the app is completely closed or device rebooted.
+ */
+export async function scheduleTaskDueNotification(
+  task: { id: string; title: string; due?: string | null; dueTime?: string | null },
+  leadMinutes = 0
+): Promise<void> {
+  if (!task.due || !task.dueTime) return;
+  try {
+    const [h, m] = task.dueTime.split(":").map(Number);
+    const [year, month, day] = task.due.split("-").map(Number);
+    const dueDate = new Date(year, month - 1, day, h, m, 0);
+    const targetTime = dueDate.getTime() - leadMinutes * 60 * 1000;
+
+    // Only schedule future reminders
+    if (targetTime <= Date.now()) return;
+
+    if (isNative) {
+      await LocalNotifications.schedule({
+        notifications: [
+          {
+            id: hashStringToInt(`task-${task.id}`),
+            title: leadMinutes > 0 ? `Task Due in ${leadMinutes}m ⏱️` : "Task Due Now ⏱️",
+            body: task.title,
+            schedule: { at: new Date(targetTime), allowWhileIdle: true },
+            channelId: "task-reminders",
+            sound: "default",
+          },
+        ],
+      });
+    }
+  } catch (err) {
+    console.warn("Could not schedule task notification:", err);
+  }
+}
+
+/**
+ * Cancel a scheduled task reminder.
+ */
+export async function cancelTaskDueNotification(taskId: string): Promise<void> {
+  try {
+    if (isNative) {
+      await LocalNotifications.cancel({
+        notifications: [{ id: hashStringToInt(`task-${taskId}`) }],
+      });
+    }
+  } catch {
+    // Ignore if not scheduled
+  }
+}
+
+const TIMER_NOTIFICATION_ID = 99999;
+
+/**
+ * Schedule an exact timer completion notification when a Pomodoro / Countdown begins.
+ * Fires even if phone screen is locked or app is killed.
+ */
+export async function scheduleTimerEndNotification(
+  durationMs: number,
+  title: string,
+  mode: string
+): Promise<void> {
+  if (!isNative || durationMs <= 0) return;
+  try {
+    const targetDate = new Date(Date.now() + durationMs);
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: TIMER_NOTIFICATION_ID,
+          title: mode === "break" ? "Break Finished! ☕" : "Focus Session Complete! 🎯",
+          body: title
+            ? `Completed: "${title}". Great job! Tap to review.`
+            : "Session ended. Time to stretch or start your next block.",
+          schedule: { at: targetDate, allowWhileIdle: true },
+          channelId: "focus-timer",
+          sound: "default",
+        },
+      ],
+    });
+  } catch (err) {
+    console.warn("Could not schedule timer end notification:", err);
+  }
+}
+
+/**
+ * Cancel any pending timer completion notification.
+ */
+export async function cancelTimerEndNotification(): Promise<void> {
+  if (!isNative) return;
+  try {
+    await LocalNotifications.cancel({
+      notifications: [{ id: TIMER_NOTIFICATION_ID }],
+    });
+  } catch {
+    // Ignore
+  }
+}
+
+/**
+ * Send an immediate test notification with sound, haptics, and notification shade display.
+ */
+export async function sendNativeTestNotification(): Promise<void> {
+  playChimeSound();
+  await triggerHaptic("success");
+
+  if (isNative) {
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: 10001,
+          title: "LifeLog Notification 🚀",
+          body: "Native Android notifications are active! Alarms will fire even when the app is closed.",
+          schedule: { at: new Date(Date.now() + 500), allowWhileIdle: true },
+          channelId: "task-reminders",
+          sound: "default",
+        },
+      ],
+    });
   }
 }

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Clock3, Inbox, Layers } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock3, Inbox, Layers, Plus } from "lucide-react";
 import type { Task, TaskTimeBlock } from "../types";
 import { useApp } from "../store";
 import {
   WEEKDAYS_SHORT,
   addDaysIso,
+  fmtDateLong,
   fmtDayShort,
   fmtDur,
   isoDate,
@@ -16,7 +17,7 @@ import {
 } from "../utils/core";
 import { Btn, Seg, cn } from "../components/ui";
 
-type CalView = "day" | "3day" | "week" | "month";
+type CalView = "schedule" | "day" | "3day" | "week" | "month";
 const H0 = 5; // grid starts 05:00
 const H1 = 24; // grid ends 24:00
 const HOUR_H = 44;
@@ -61,8 +62,9 @@ export interface UnscheduledItem {
 export function CalendarView() {
   const app = useApp();
   const { state, set, openTaskDialog, toast } = app;
-  const [view, setView] = useState<CalView>("week");
+  const [view, setView] = useState<CalView>("schedule");
   const [anchor, setAnchor] = useState(todayIso());
+  const [selectedDay, setSelectedDay] = useState(todayIso());
   const [hover, setHover] = useState<{ iso: string; min: number } | null>(null);
   const today = todayIso();
   const [nowMin, setNowMin] = useState(() => new Date().getHours() * 60 + new Date().getMinutes());
@@ -147,12 +149,22 @@ export function CalendarView() {
     return listDates(start, addDaysIso(start, 41));
   }, [view, anchor]);
 
+  const scheduleDays = useMemo(() => {
+    if (view !== "schedule") return [];
+    return listDates(anchor, addDaysIso(anchor, 13));
+  }, [view, anchor]);
+
   const navigate = (dir: -1 | 1) => {
     if (view === "month") {
       const d = parseIso(anchor);
       setAnchor(isoDate(new Date(d.getFullYear(), d.getMonth() + dir, Math.min(d.getDate(), 28))));
-    } else if (view === "3day") setAnchor(addDaysIso(anchor, dir * 3));
-    else setAnchor(addDaysIso(anchor, dir * (view === "week" ? 7 : 1)));
+    } else if (view === "schedule") {
+      setAnchor(addDaysIso(anchor, dir * 7));
+    } else if (view === "3day") {
+      setAnchor(addDaysIso(anchor, dir * 3));
+    } else {
+      setAnchor(addDaysIso(anchor, dir * (view === "week" ? 7 : 1)));
+    }
   };
 
   const label = useMemo(() => {
@@ -174,6 +186,9 @@ export function CalendarView() {
           "December",
         ][d.getMonth()]
       } ${d.getFullYear()}`;
+    }
+    if (view === "schedule") {
+      return `${fmtDayShort(anchor)} — ${fmtDayShort(addDaysIso(anchor, 13))}`;
     }
     if (days.length === 1) return fmtDayShort(days[0]);
     return `${fmtDayShort(days[0])} — ${fmtDayShort(days[days.length - 1])}`;
@@ -285,8 +300,8 @@ export function CalendarView() {
     );
   })();
 
-  /* ---------------- month view ---------------- */
-  if (view === "month") {
+  /* ---------------- schedule view (Google Calendar chronological feed) ---------------- */
+  if (view === "schedule") {
     return (
       <div className="flex flex-col gap-3 w-full max-w-full overflow-x-hidden">
         <Header
@@ -294,31 +309,197 @@ export function CalendarView() {
           setView={setView}
           label={label}
           navigate={navigate}
-          onToday={() => setAnchor(todayIso())}
+          onToday={() => {
+            setAnchor(todayIso());
+            setSelectedDay(todayIso());
+          }}
           busyNow={busyNow?.title ?? null}
         />
         <Tray unscheduled={unscheduled} />
-        <div className="card overflow-hidden">
-          <div className="grid grid-cols-7 border-b" style={{ borderColor: "var(--line)" }}>
+        <div className="flex flex-col gap-3 w-full min-w-0">
+          {scheduleDays.map((iso) => {
+            const blocks = blocksByDay.get(iso) ?? [];
+            const isToday = iso === today;
+            const minTracked = tracked.get(iso) ?? 0;
+            const d = parseIso(iso);
+            const dayNum = d.getDate();
+
+            return (
+              <div
+                key={iso}
+                className={cn(
+                  "card p-3 w-full min-w-0 flex flex-col gap-2 transition-all",
+                  isToday && "ring-1 ring-[var(--accent)]"
+                )}
+              >
+                <div
+                  className="flex items-center justify-between pb-1.5 border-b"
+                  style={{ borderColor: "var(--line)" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold",
+                        isToday
+                          ? "bg-[var(--accent)] text-[var(--on-accent)]"
+                          : "bg-[var(--panel2)] text-[var(--text)]"
+                      )}
+                    >
+                      {dayNum}
+                    </span>
+                    <div>
+                      <div className="text-[12px] font-bold flex items-center gap-1.5">
+                        <span>{fmtDayShort(iso)}</span>
+                        {isToday && (
+                          <span className="chip !text-[9.5px] !py-0 !px-1.5 text-accent font-bold">
+                            Today
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10.5px]" style={{ color: "var(--mut)" }}>
+                        {blocks.length} {blocks.length === 1 ? "block" : "blocks"}{" "}
+                        {minTracked > 0 && `· ${fmtDur(minTracked)} tracked`}
+                      </div>
+                    </div>
+                  </div>
+                  <Btn
+                    size="sm"
+                    variant="soft"
+                    onClick={() => openTaskDialog({ presetDate: iso })}
+                    className="!p-1.5 h-7"
+                    title="Add to this day"
+                  >
+                    <Plus size={13} />
+                  </Btn>
+                </div>
+
+                {blocks.length === 0 ? (
+                  <div className="py-2 text-center text-[11.5px] italic" style={{ color: "var(--mut)" }}>
+                    No events scheduled
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-1.5 w-full min-w-0">
+                    {blocks.map((b) => {
+                      const p = state.projects.find((x) => x.id === b.projectId);
+                      const task = state.tasks.find((x) => x.id === b.taskId);
+                      return (
+                        <div
+                          key={b.id}
+                          onClick={() => openTaskDialog({ taskId: b.taskId })}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-[var(--panel2)] hover:bg-[var(--panel)] cursor-pointer transition-colors w-full min-w-0 border-l-4"
+                          style={{ borderLeftColor: p?.color ?? "var(--accent)" }}
+                        >
+                          <div className="flex flex-col shrink-0 min-w-[50px]">
+                            <span className="text-[11.5px] font-bold tnum">{b.time}</span>
+                            <span className="text-[10px]" style={{ color: "var(--mut)" }}>
+                              {b.durationMin}m
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 truncate">
+                              {b.emoji && <span className="text-[12px]">{b.emoji}</span>}
+                              <span className="text-[12.5px] font-semibold truncate">{b.title}</span>
+                              {b.label && (
+                                <span className="chip !text-[9.5px] !py-0 !px-1 shrink-0">
+                                  {b.label}
+                                </span>
+                              )}
+                            </div>
+                            {p && (
+                              <div
+                                className="text-[10.5px] flex items-center gap-1 mt-0.5"
+                                style={{ color: p.color }}
+                              >
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  style={{ background: p.color }}
+                                />
+                                <span className="truncate">{p.name}</span>
+                              </div>
+                            )}
+                          </div>
+                          {task && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                set((s) => ({
+                                  ...s,
+                                  tasks: s.tasks.map((t) =>
+                                    t.id === task.id ? { ...t, done: !t.done } : t
+                                  ),
+                                }));
+                              }}
+                              className="p-1 rounded hover:bg-[var(--panel)] shrink-0 text-mut hover:text-accent"
+                              title={task.done ? "Mark incomplete" : "Mark done"}
+                            >
+                              <Check
+                                size={14}
+                                className={task.done ? "text-accent" : "opacity-40"}
+                              />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------- month view (Google Calendar mobile style: dots + agenda) ---------------- */
+  if (view === "month") {
+    const selectedDayBlocks = blocksByDay.get(selectedDay) ?? [];
+    const selectedDayTracked = tracked.get(selectedDay) ?? 0;
+
+    return (
+      <div className="flex flex-col gap-3 w-full max-w-full overflow-x-hidden">
+        <Header
+          view={view}
+          setView={setView}
+          label={label}
+          navigate={navigate}
+          onToday={() => {
+            setAnchor(todayIso());
+            setSelectedDay(todayIso());
+          }}
+          busyNow={busyNow?.title ?? null}
+        />
+        <Tray unscheduled={unscheduled} />
+
+        {/* Compact 7-day Google Calendar dot grid */}
+        <div className="card overflow-hidden w-full min-w-0 p-2">
+          <div
+            className="grid grid-cols-7 border-b pb-1 mb-1"
+            style={{ borderColor: "var(--line)" }}
+          >
             {WEEKDAYS_SHORT.map((d) => (
               <div
                 key={d}
-                className="px-2 py-1.5 text-[10.5px] font-bold uppercase tracking-wider"
+                className="text-center py-1 text-[11px] font-bold uppercase tracking-wider"
                 style={{ color: "var(--mut)" }}
               >
                 {d}
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-7">
+          <div className="grid grid-cols-7 gap-y-1">
             {monthCells.map((iso) => {
               const inMonth = parseIso(iso).getMonth() === parseIso(anchor).getMonth();
               const blocks = blocksByDay.get(iso) ?? [];
-              const min = tracked.get(iso) ?? 0;
               const isToday = iso === today;
+              const isSelected = iso === selectedDay;
+              const cellDate = parseIso(iso).getDate();
+
               return (
                 <div
                   key={iso}
+                  onClick={() => setSelectedDay(iso)}
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.currentTarget.classList.add("drop-hot");
@@ -328,76 +509,44 @@ export function CalendarView() {
                     e.currentTarget.classList.remove("drop-hot");
                     dropOn(iso, null)(e);
                   }}
-                  onClick={() => openTaskDialog({ presetDate: iso })}
                   className={cn(
-                    "min-h-[104px] cursor-pointer border-b border-r p-1.5 transition-colors hover:bg-[var(--panel2)]"
+                    "flex flex-col items-center justify-start py-1.5 px-0.5 rounded-lg cursor-pointer transition-colors min-h-[50px] relative",
+                    isSelected
+                      ? "bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]"
+                      : "hover:bg-[var(--panel2)]"
                   )}
                   style={{
-                    borderColor: "var(--line)",
-                    opacity: inMonth ? 1 : 0.45,
-                    background: isToday ? "var(--accent-soft)" : undefined,
+                    opacity: inMonth ? 1 : 0.35,
                   }}
                 >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={cn("tnum rounded-md px-1.5 py-px text-[12px] font-bold")}
-                      style={
-                        isToday
-                          ? { background: "var(--accent)", color: "var(--on-accent)" }
-                          : { color: "var(--mut)" }
-                      }
-                    >
-                      {parseIso(iso).getDate()}
-                    </span>
-                    {min > 0 && (
-                      <span
-                        className="chip !border-0 !py-0 font-mono text-[9.5px]"
-                        style={{
-                          background: "color-mix(in srgb, var(--ok) 18%, transparent)",
-                          color: "var(--ok)",
-                        }}
-                      >
-                        {fmtDur(min)}
-                      </span>
+                  <span
+                    className={cn(
+                      "w-6 h-6 flex items-center justify-center rounded-full text-[12px] font-bold tnum",
+                      isToday
+                        ? "bg-[var(--accent)] text-[var(--on-accent)] shadow-sm"
+                        : isSelected
+                        ? "font-extrabold text-accent"
+                        : "text-[var(--text)]"
                     )}
-                  </div>
-                  <div className="mt-1 flex flex-col gap-1">
-                    {blocks.slice(0, 3).map((b) => {
+                  >
+                    {cellDate}
+                  </span>
+
+                  {/* Dot indicators for tasks/blocks */}
+                  <div className="flex items-center justify-center gap-0.5 mt-1 max-w-full flex-wrap px-0.5">
+                    {blocks.slice(0, 3).map((b, i) => {
                       const p = state.projects.find((x) => x.id === b.projectId);
                       return (
-                        <div
-                          key={b.id}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData(
-                              "lifelog/drag",
-                              JSON.stringify({ taskId: b.taskId, blockId: b.blockId })
-                            );
-                            e.dataTransfer.setData("lifelog/task", b.taskId);
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openTaskDialog({ taskId: b.taskId });
-                          }}
-                          className="truncate rounded-md px-1.5 py-0.5 text-[10.5px] font-bold"
-                          style={{
-                            background: `color-mix(in srgb, ${p?.color ?? "#888"} 26%, transparent)`,
-                            color: "var(--text)",
-                            cursor: "grab",
-                          }}
-                          title={`${b.title}${b.label ? ` · ${b.label}` : ""} (${b.durationMin}m) · ${b.time}`}
-                        >
-                          <span className="tnum" style={{ color: p?.color }}>
-                            {b.time}
-                          </span>{" "}
-                          {b.label ? `[${b.label}] ` : ""}
-                          {b.title}
-                        </div>
+                        <span
+                          key={b.id || i}
+                          className="w-1.5 h-1.5 rounded-full shrink-0"
+                          style={{ background: p?.color ?? "var(--accent)" }}
+                        />
                       );
                     })}
                     {blocks.length > 3 && (
-                      <span className="text-[10px] font-bold" style={{ color: "var(--mut)" }}>
-                        +{blocks.length - 3} more
+                      <span className="text-[8px] font-bold leading-none text-mut">
+                        +{blocks.length - 3}
                       </span>
                     )}
                   </div>
@@ -405,6 +554,123 @@ export function CalendarView() {
               );
             })}
           </div>
+        </div>
+
+        {/* Selected Day Agenda panel below Month grid */}
+        <div className="card p-3 flex flex-col gap-2.5 w-full min-w-0">
+          <div
+            className="flex items-center justify-between pb-2 border-b"
+            style={{ borderColor: "var(--line)" }}
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[13.5px] font-bold">
+                  {fmtDateLong(parseIso(selectedDay))}
+                </h3>
+                {selectedDay === today && (
+                  <span className="chip !text-[10px] !py-0 !px-1.5 text-accent font-bold">
+                    Today
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: "var(--mut)" }}>
+                {selectedDayBlocks.length}{" "}
+                {selectedDayBlocks.length === 1 ? "block" : "blocks"}
+                {selectedDayTracked > 0 && ` · ${fmtDur(selectedDayTracked)} tracked`}
+              </p>
+            </div>
+            <Btn
+              size="sm"
+              variant="primary"
+              onClick={() => openTaskDialog({ presetDate: selectedDay })}
+              className="gap-1 text-[12px]"
+            >
+              <Plus size={13} /> Add Block
+            </Btn>
+          </div>
+
+          {selectedDayBlocks.length === 0 ? (
+            <div className="py-6 text-center flex flex-col items-center justify-center gap-2">
+              <Clock3 size={24} className="opacity-30 text-mut" />
+              <p className="text-[12.5px] font-semibold text-mut">
+                No blocks scheduled for this day
+              </p>
+              <Btn
+                size="sm"
+                variant="soft"
+                onClick={() => openTaskDialog({ presetDate: selectedDay })}
+                className="gap-1 text-[11.5px]"
+              >
+                <Plus size={12} /> Schedule task
+              </Btn>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 w-full min-w-0">
+              {selectedDayBlocks.map((b) => {
+                const p = state.projects.find((x) => x.id === b.projectId);
+                const task = state.tasks.find((x) => x.id === b.taskId);
+                return (
+                  <div
+                    key={b.id}
+                    onClick={() => openTaskDialog({ taskId: b.taskId })}
+                    className="flex items-center gap-2.5 p-2 rounded-lg bg-[var(--panel2)] hover:bg-[var(--panel)] cursor-pointer transition-colors w-full min-w-0 border-l-4"
+                    style={{ borderLeftColor: p?.color ?? "var(--accent)" }}
+                  >
+                    <div className="flex flex-col shrink-0 min-w-[50px]">
+                      <span className="text-[12px] font-bold tnum">{b.time}</span>
+                      <span className="text-[10px]" style={{ color: "var(--mut)" }}>
+                        {b.durationMin}m
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 truncate">
+                        {b.emoji && <span className="text-[12px]">{b.emoji}</span>}
+                        <span className="text-[12.5px] font-semibold truncate">{b.title}</span>
+                        {b.label && (
+                          <span className="chip !text-[9.5px] !py-0 !px-1 shrink-0">
+                            {b.label}
+                          </span>
+                        )}
+                      </div>
+                      {p && (
+                        <div
+                          className="text-[10.5px] flex items-center gap-1 mt-0.5"
+                          style={{ color: p.color }}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ background: p.color }}
+                          />
+                          <span className="truncate">{p.name}</span>
+                        </div>
+                      )}
+                    </div>
+                    {task && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          set((s) => ({
+                            ...s,
+                            tasks: s.tasks.map((t) =>
+                              t.id === task.id ? { ...t, done: !t.done } : t
+                            ),
+                          }));
+                        }}
+                        className="p-1 rounded hover:bg-[var(--panel)] shrink-0 text-mut hover:text-accent"
+                        title={task.done ? "Mark incomplete" : "Mark done"}
+                      >
+                        <Check
+                          size={14}
+                          className={task.done ? "text-accent" : "opacity-40"}
+                        />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -682,8 +948,9 @@ function Header({
         <div className="ml-auto sm:ml-0">
           <Seg
             options={[
+              { value: "schedule", label: "Schedule" },
               { value: "day", label: "Day" },
-              { value: "3day", label: "3 Day" },
+              { value: "3day", label: "3D" },
               { value: "week", label: "Week" },
               { value: "month", label: "Month" },
             ]}

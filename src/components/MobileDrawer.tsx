@@ -9,8 +9,9 @@ import {
   Flame,
   X,
   CheckSquare,
+  Trash2,
 } from "lucide-react";
-import type { Priority, ViewId } from "../types";
+import type { Priority, Project, ViewId } from "../types";
 import { useApp } from "../store";
 import { triggerHaptic } from "../utils/native";
 import { cn } from "./ui";
@@ -34,7 +35,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   selectedTaskFilter,
   onNewProject,
 }) => {
-  const { state, openTaskDialog } = useApp();
+  const { state, set, confirm, toast, openTaskDialog } = useApp();
   const [projectsExpanded, setProjectsExpanded] = useState(true);
   const [tagsExpanded, setTagsExpanded] = useState(true);
   const [prioritiesExpanded, setPrioritiesExpanded] = useState(false);
@@ -79,6 +80,51 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     onClose();
   };
 
+  const handleDeleteProject = async (e: React.MouseEvent, p: Project) => {
+    e.stopPropagation();
+    triggerHaptic("warning");
+    const count = state.tasks.filter((t) => t.projectId === p.id).length;
+    const ok = await confirm({
+      title: `Delete project "${p.name}"?`,
+      body: `This project and its ${count} task(s) will be permanently deleted. Tracked time history remains in reports.`,
+      confirmLabel: "Delete project",
+      danger: true,
+      requireText: p.name,
+    });
+    if (!ok) return;
+    set((s) => ({
+      ...s,
+      projects: s.projects.filter((x) => x.id !== p.id),
+      tasks: s.tasks.filter((t) => t.projectId !== p.id),
+    }));
+    toast(`Deleted project "${p.name}"`, "warn");
+  };
+
+  const handleDeleteTag = async (e: React.MouseEvent, tag: string) => {
+    e.stopPropagation();
+    triggerHaptic("warning");
+    const count = state.tasks.filter((t) => t.tags.includes(tag)).length;
+    const ok = await confirm({
+      title: `Delete tag "#${tag}"?`,
+      body: `This tag will be removed from ${count} task(s). The tasks themselves stay intact.`,
+      confirmLabel: "Delete tag",
+      danger: true,
+    });
+    if (!ok) return;
+    set((s) => {
+      const tagColors = { ...s.tagColors };
+      delete tagColors[tag];
+      return {
+        ...s,
+        tagColors,
+        tasks: s.tasks.map((t) =>
+          t.tags.includes(tag) ? { ...t, tags: t.tags.filter((x) => x !== tag) } : t
+        ),
+      };
+    });
+    toast(`Deleted tag "#${tag}"`, "warn");
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Task navigation drawer">
       {/* Dimmed touch backdrop */}
@@ -98,43 +144,27 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Drawer Header */}
-        <div className="flex items-center justify-between border-b px-4 pb-3" style={{ borderColor: "var(--line)" }}>
-          <div className="flex items-center gap-2.5">
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl font-bold shadow-xs text-white"
-              style={{ background: "var(--accent)" }}
-            >
-              <CheckSquare size={18} />
-            </div>
-            <div>
-              <div className="font-display text-[15px] font-bold tracking-tight text-[var(--text)]">
-                Tasks & Projects
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--mut)]">
-                <span className="flex items-center gap-0.5 text-[var(--accent)] font-bold">
-                  <Flame size={11} /> {openTasks.length} open
-                </span>
-                <span>•</span>
-                <span>{state.projects.length} projects</span>
-              </div>
-            </div>
+        <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--line)" }}>
+          <div className="flex items-center gap-2">
+            <CheckSquare size={18} style={{ color: "var(--accent)" }} />
+            <span className="font-display text-[15px] font-bold tracking-tight">Tasks & Filters</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--mut)] hover:bg-[var(--panel2)] active:scale-95 cursor-pointer"
+            className="rounded-lg p-1.5 text-[var(--mut)] hover:bg-[var(--panel2)] hover:text-[var(--text)] transition-colors cursor-pointer"
             aria-label="Close drawer"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
 
-        {/* Scrollable List Sections (Todoist Style) */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4 scrollbar-none">
-          {/* Section 1: Smart Views */}
+        {/* Scrollable Navigation Body */}
+        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+          {/* Section 1: Standard Smart Views */}
           <div className="space-y-0.5">
             <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--mut)]">
-              Tasks
+              Focus Views
             </div>
             
             {/* Inbox */}
@@ -168,10 +198,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   : "text-[var(--text)] hover:bg-[var(--panel2)]"
               )}
             >
-              <CalendarPlus size={17} className={selectedTaskFilter === "today" ? "text-[var(--accent)]" : "text-amber-500"} />
+              <CalendarPlus size={17} className={selectedTaskFilter === "today" ? "text-[var(--accent)]" : "text-[var(--mut)]"} />
               <span className="flex-1 truncate">Today</span>
               {todayCount > 0 && (
-                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                <span className="rounded-full bg-[var(--accent)] text-[var(--on-accent)] px-2 py-0.5 text-[11px] font-bold">
                   {todayCount}
                 </span>
               )}
@@ -233,26 +263,37 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                   const pCount = openTasks.filter((t) => t.projectId === p.id).length;
                   const isSel = currentView === "tasks" && selectedTaskFilter === `p:${p.id}`;
                   return (
-                    <button
+                    <div
                       key={p.id}
-                      type="button"
-                      onClick={() => handleProjectClick(p.id)}
                       className={cn(
-                        "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-[13px] font-bold transition-all cursor-pointer text-left",
+                        "group flex w-full items-center justify-between gap-1.5 rounded-xl px-2.5 py-1.5 text-[13px] font-bold transition-all cursor-pointer",
                         isSel
                           ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                           : "text-[var(--text)] hover:bg-[var(--panel2)]"
                       )}
+                      onClick={() => handleProjectClick(p.id)}
                     >
-                      <span className="text-[14px]">{p.emoji || "📁"}</span>
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />
-                      <span className="flex-1 truncate">{p.name}</span>
-                      {pCount > 0 && (
-                        <span className="rounded-full px-2 py-0.2 text-[10.5px] font-bold text-[var(--mut)]">
-                          {pCount}
-                        </span>
-                      )}
-                    </button>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="text-[14px]">{p.emoji || "📁"}</span>
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />
+                        <span className="truncate">{p.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {pCount > 0 && (
+                          <span className="rounded-full px-2 py-0.2 text-[10.5px] font-bold text-[var(--mut)]">
+                            {pCount}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteProject(e, p)}
+                          className="opacity-70 hover:opacity-100 p-1 rounded-md text-[var(--mut)] hover:text-[var(--danger)] transition-all cursor-pointer"
+                          title={`Delete "${p.name}"`}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
@@ -281,28 +322,39 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                     ).length;
                     const isSel = currentView === "tasks" && selectedTaskFilter === `t:${t}`;
                     return (
-                      <button
+                      <div
                         key={t}
-                        type="button"
-                        onClick={() => handleTagClick(t)}
                         className={cn(
-                          "flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-[13px] font-bold transition-all cursor-pointer text-left",
+                          "group flex w-full items-center justify-between gap-1.5 rounded-xl px-2.5 py-1.5 text-[13px] font-bold transition-all cursor-pointer",
                           isSel
                             ? "bg-[var(--accent-soft)] text-[var(--accent)]"
                             : "text-[var(--text)] hover:bg-[var(--panel2)]"
                         )}
+                        onClick={() => handleTagClick(t)}
                       >
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ background: state.tagColors[t] ?? "var(--accent)" }}
-                        />
-                        <span className="flex-1 truncate">#{t}</span>
-                        {tCount > 0 && (
-                          <span className="rounded-full px-2 py-0.2 text-[10.5px] font-bold text-[var(--mut)]">
-                            {tCount}
-                          </span>
-                        )}
-                      </button>
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ background: state.tagColors[t] ?? "var(--accent)" }}
+                          />
+                          <span className="truncate">#{t}</span>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {tCount > 0 && (
+                            <span className="rounded-full px-2 py-0.2 text-[10.5px] font-bold text-[var(--mut)]">
+                              {tCount}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteTag(e, t)}
+                            className="opacity-70 hover:opacity-100 p-1 rounded-md text-[var(--mut)] hover:text-[var(--danger)] transition-all cursor-pointer"
+                            title={`Delete tag "#${t}"`}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -362,7 +414,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </div>
 
         {/* Drawer Bottom Bar: Quick Create Task */}
-        <div className="border-t p-3" style={{ borderColor: "var(--line)", background: "var(--panel2)" }}>
+        <div className="border-t p-3 flex flex-col gap-2" style={{ borderColor: "var(--line)", background: "var(--panel2)" }}>
           <button
             type="button"
             onClick={() => {
@@ -376,6 +428,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             <Plus size={15} strokeWidth={2.8} />
             <span>Create New Task</span>
           </button>
+          <div className="text-center text-[10.5px] font-semibold text-[var(--mut)] opacity-75 select-none">
+            LifeLog • Crafted by Krish Patel
+          </div>
         </div>
       </aside>
     </div>

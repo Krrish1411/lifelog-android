@@ -18,7 +18,12 @@ import { useApp } from "../store";
 import { fmtClock, fmtDur, isoDate, sessionMinutes, todayIso, uid } from "../utils/core";
 import { playTimerChime, stopSoundscape } from "../utils/audio";
 import { Btn, EmptyState, SearchInput, Seg, cn } from "../components/ui";
-import { triggerHaptic } from "../utils/native";
+import {
+  cancelTimerEndNotification,
+  playChimeSound,
+  scheduleTimerEndNotification,
+  triggerHaptic,
+} from "../utils/native";
 
 function elapsedMsOf(s: Session, now: number): number {
   let ms = now - s.startedAt;
@@ -129,9 +134,11 @@ export function FocusView() {
     }));
 
     stopSoundscape();
+    cancelTimerEndNotification();
     triggerHaptic(kind === "done" ? "heavy" : "medium");
 
     if (kind === "done") {
+      playChimeSound();
       playTimerChime(live.mode === "break" ? "break" : "complete");
       if (
         settings.notifyEnabled &&
@@ -220,6 +227,15 @@ export function FocusView() {
     setNow(ts);
     setStage(true);
     triggerHaptic("medium");
+
+    if (plannedMin && plannedMin > 0) {
+      scheduleTimerEndNotification(
+        plannedMin * 60 * 1000,
+        isBreak ? "Break" : selTask?.title || "Focus Session",
+        m
+      );
+    }
+
     toast(
       isBreak
         ? "Break started"
@@ -232,6 +248,7 @@ export function FocusView() {
 
   const pause = () => {
     if (!live || paused) return;
+    cancelTimerEndNotification();
     triggerHaptic("light");
     set((s) => ({
       ...s,
@@ -244,6 +261,17 @@ export function FocusView() {
 
   const resume = () => {
     if (!live || !paused) return;
+    if (live.plannedMin) {
+      const remainingMs = Math.max(0, live.plannedMin * 60 * 1000 - elapsedMs);
+      if (remainingMs > 0) {
+        const task = state.tasks.find((t) => t.id === live.taskId);
+        scheduleTimerEndNotification(
+          remainingMs,
+          live.mode === "break" ? "Break" : task?.title || "Focus Session",
+          live.mode
+        );
+      }
+    }
     triggerHaptic("light");
     set((s) => ({
       ...s,
@@ -263,12 +291,22 @@ export function FocusView() {
 
   const extend = (min: number) => {
     if (!live || !live.plannedMin) return;
+    const newPlanned = live.plannedMin + min;
     set((s) => ({
       ...s,
       sessions: s.sessions.map((x) =>
-        x.id === live.id ? { ...x, plannedMin: x.plannedMin! + min } : x
+        x.id === live.id ? { ...x, plannedMin: newPlanned } : x
       ),
     }));
+    const remainingMs = Math.max(0, newPlanned * 60 * 1000 - elapsedMs);
+    if (remainingMs > 0) {
+      const task = state.tasks.find((t) => t.id === live.taskId);
+      scheduleTimerEndNotification(
+        remainingMs,
+        live.mode === "break" ? "Break" : task?.title || "Focus Session",
+        live.mode
+      );
+    }
     toast(`+${min} min added`, "ok");
   };
 

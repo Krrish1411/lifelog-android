@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, Download, Lock, Palette, Quote, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
+import { Bell, Download, Lock, Palette, Quote, RotateCcw, Sparkles, Trash2, Upload, Volume2 } from "lucide-react";
 import type { LayoutMode, State, ThemeMode, TokenKey } from "../types";
 import {
   DEFAULT_SETTINGS, FONT_PAIRS, QUOTES, REPORT_WIDGETS, STATE_VERSION,
@@ -10,6 +10,13 @@ import { contrast, download, ensureContrast, normalizeHex, todayIso } from "../u
 import { CUSTOM_FONT_FAMILY, readFileAsDataUrl, saveCustomFont } from "../utils/fonts";
 import { clearIDB, saveErasedFlag } from "../utils/idb";
 import { Btn, ColorPicker, Labeled, Modal, Seg, TextInput, Toggle, cn } from "../components/ui";
+import {
+  checkNativeNotificationPermission,
+  isNative,
+  playChimeSound,
+  requestNativeNotificationPermission,
+  sendNativeTestNotification,
+} from "../utils/native";
 
 const LS_KEY = "lifelog.state.v1";
 
@@ -81,13 +88,13 @@ export function SettingsView() {
   };
 
   const dark = s.themeMode === "dark";
-  const bgNow = normalizeHex(dark ? s.bgDark : s.bgLight) ?? (dark ? "#0f1714" : "#eef1ee");
+  const bgNow = normalizeHex(dark ? s.bgDark : s.bgLight) ?? (dark ? "#000000" : "#ffffff");
   const tokenDefault = (k: TokenKey): string => {
-    if (k === "text") return dark ? "#e8efe9" : "#182019";
-    if (k === "mut") return dark ? "#8fa396" : "#5c6a60";
-    if (k === "panel") return dark ? "#16211c" : "#ffffff";
-    if (k === "panel2") return dark ? "#1d2b24" : "#f7faf7";
-    if (k === "line") return dark ? "#26382f" : "#d7ded8";
+    if (k === "text") return dark ? "#f3f4f6" : "#182019";
+    if (k === "mut") return dark ? "#9ca3af" : "#5c6a60";
+    if (k === "panel") return dark ? "#080808" : "#ffffff";
+    if (k === "panel2") return dark ? "#121212" : "#f7faf7";
+    if (k === "line") return dark ? "#1f1f1f" : "#d7ded8";
     if (k === "ok") return dark ? "#6fbf8e" : "#3e8f60";
     if (k === "warn") return dark ? "#e0b457" : "#a67c1f";
     return dark ? "#d66853" : "#b23c28";
@@ -234,14 +241,25 @@ export function SettingsView() {
     window.location.reload();
   };
 
-  const notifStatus = !("Notification" in window) ? "unsupported"
-    : Notification.permission === "granted" ? "granted"
-    : Notification.permission === "denied" ? "denied" : "default";
+  const [nativePerm, setNativePerm] = useState(false);
+  useEffect(() => {
+    checkNativeNotificationPermission().then(setNativePerm);
+  }, []);
+
   const enableNotifs = async () => {
-    if (!("Notification" in window)) return toast("This browser has no Notification API", "err");
-    const perm = await Notification.requestPermission();
-    if (perm === "granted") { patch({ notifyEnabled: true }); toast("Desktop notifications on — reminders fire while LifeLog is open", "ok"); }
-    else toast("Permission denied — in-app toasts will still appear", "warn");
+    const granted = await requestNativeNotificationPermission();
+    setNativePerm(granted);
+    if (granted) {
+      patch({ notifyEnabled: true });
+      toast(
+        isNative
+          ? "Android notifications enabled — exact alarms will fire in background & even if app is closed!"
+          : "Notifications enabled — reminders will fire when due!",
+        "ok"
+      );
+    } else {
+      toast("Notification permission was denied or dismissed.", "warn");
+    }
   };
 
   const saveQuotes = () => {
@@ -462,32 +480,79 @@ export function SettingsView() {
           </div>
         ))}
 
-        {section("Reminders & notifications", "Lead time applies to time-blocks and snoozed tasks, and fires while LifeLog is open.", (
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-end gap-3">
-              <Labeled label="Remind me … minutes before">
-                <TextInput
-                  type="number"
-                  min={0}
-                  max={180}
-                  className="w-[110px]"
-                  value={reminderDraft}
-                  onChange={(e) => setReminderDraft(e.target.value)}
-                  onBlur={commitReminder}
-                  onKeyDown={(e) => { if (e.key === "Enter") commitReminder(); }}
-                />
-              </Labeled>
-              <span className="chip text-[10.5px]" style={{ color: notifStatus === "granted" ? "var(--ok)" : notifStatus === "denied" ? "var(--danger)" : "var(--mut)" }}>
-                <Bell size={10} /> browser permission: {notifStatus}
-              </span>
+        {section(
+          "Reminders & notifications",
+          "Background alarms for tasks and focus sessions with exact wakeup and in-app chime sound.",
+          (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-end gap-3">
+                <Labeled label="Remind me … minutes before">
+                  <TextInput
+                    type="number"
+                    min={0}
+                    max={180}
+                    className="w-[110px]"
+                    value={reminderDraft}
+                    onChange={(e) => setReminderDraft(e.target.value)}
+                    onBlur={commitReminder}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitReminder();
+                    }}
+                  />
+                </Labeled>
+                <span
+                  className="chip text-[10.5px]"
+                  style={{
+                    color: nativePerm ? "var(--ok)" : "var(--mut)",
+                  }}
+                >
+                  <Bell size={10} /> {isNative ? "Android permission" : "Browser permission"}:{" "}
+                  {nativePerm ? "Granted" : "Not enabled"}
+                </span>
+              </div>
+
+              <div
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border p-3"
+                style={{ borderColor: "var(--line)", background: "var(--bg)" }}
+              >
+                <div className="flex flex-col gap-1">
+                  <Toggle
+                    checked={s.notifyEnabled}
+                    onChange={(v) => {
+                      if (v && !nativePerm) enableNotifs();
+                      else patch({ notifyEnabled: v });
+                    }}
+                    label="Enable notifications (Background & Exact Alarms)"
+                  />
+                  <span className="text-[10.5px] font-semibold" style={{ color: "var(--mut)" }}>
+                    {isNative
+                      ? "Uses Android AlarmManager to trigger alarms even if the app is killed or device reboots."
+                      : "Fires desktop notifications and browser alerts."}
+                  </span>
+                </div>
+                {!s.notifyEnabled && (
+                  <Btn size="sm" variant="primary" onClick={enableNotifs}>
+                    <Bell size={12} /> Enable
+                  </Btn>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Btn
+                  size="sm"
+                  variant="outline"
+                  onClick={async () => {
+                    await sendNativeTestNotification();
+                    toast("Test notification sent & bell chime played!", "ok");
+                  }}
+                  className="gap-1.5 text-[11.5px]"
+                >
+                  <Volume2 size={13} /> Send test notification & play chime
+                </Btn>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 rounded-xl border p-3" style={{ borderColor: "var(--line)", background: "var(--bg)" }}>
-              <Toggle checked={s.notifyEnabled} onChange={(v) => { if (v && notifStatus !== "granted") enableNotifs(); else patch({ notifyEnabled: v }); }} label="Native desktop notifications" />
-              {!s.notifyEnabled && <Btn size="sm" variant="primary" onClick={enableNotifs}><Bell size={12} /> Enable</Btn>}
-              <span className="text-[10.5px] font-semibold" style={{ color: "var(--mut)" }}>In-app toasts always appear, with or without permission.</span>
-            </div>
-          </div>
-        ))}
+          )
+        )}
 
         {section("Timer defaults", "Used by the Focus stage — pomodoro length, break length, countdown default.", (
           <div className="flex flex-wrap items-end gap-4">
@@ -587,6 +652,31 @@ export function SettingsView() {
             </div>
           </div>
         ), true)}
+
+        {section(
+          "About LifeLog",
+          "Personal, offline-first productivity system designed for daily clarity and deep work flow.",
+          (
+            <div className="flex flex-col gap-3">
+              <div
+                className="flex items-center justify-between p-3.5 rounded-xl border"
+                style={{ borderColor: "var(--line)", background: "var(--panel2)" }}
+              >
+                <div>
+                  <div className="text-[14.5px] font-bold">LifeLog</div>
+                  <div className="text-[12px] font-semibold mt-0.5" style={{ color: "var(--mut)" }}>
+                    Crafted with precision by <span className="font-bold text-accent">Krish Patel</span>
+                  </div>
+                </div>
+                <span className="chip text-[11px] font-mono">v{STATE_VERSION}.0</span>
+              </div>
+              <div className="text-[11px] font-medium" style={{ color: "var(--mut)" }}>
+                Zero telemetry · 100% offline-first · Local IndexedDB storage · AES-256-GCM encryption · Tailored for Android & Desktop
+              </div>
+            </div>
+          ),
+          true
+        )}
 
         {section(
           "Danger zone",

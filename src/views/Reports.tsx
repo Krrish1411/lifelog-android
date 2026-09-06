@@ -236,44 +236,44 @@ export function ReportsView() {
 
   const maxHour = Math.max(1, ...hourBuckets);
   const widgetCard = (title: string, sub: string, body: React.ReactNode, span = false) => (
-    <div className={cn("card card-hover engine-panel p-4", span && "lg:col-span-2")}>
-      <div className="flex items-baseline justify-between">
-        <div className="font-display text-[14.5px] font-bold tracking-tight">{title}</div>
-        <div className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "var(--mut)" }}>{sub}</div>
+    <div className={cn("card card-hover engine-panel p-4 w-full min-w-0 overflow-hidden", span && "lg:col-span-2")}>
+      <div className="flex items-baseline justify-between min-w-0 gap-2">
+        <div className="font-display text-[14.5px] font-bold tracking-tight truncate">{title}</div>
+        <div className="text-[10.5px] font-bold uppercase tracking-wider shrink-0" style={{ color: "var(--mut)" }}>{sub}</div>
       </div>
-      <div className="mt-3">{body}</div>
+      <div className="mt-3 min-w-0 w-full overflow-hidden">{body}</div>
     </div>
   );
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-full overflow-x-hidden">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-display text-[24px] font-bold tracking-tight">Reports</h1>
-          <p className="text-[13px] font-semibold" style={{ color: "var(--mut)" }}>
+    <div className="flex flex-col gap-4 w-full max-w-full min-w-0 overflow-x-hidden">
+      <div className="flex flex-wrap items-end justify-between gap-3 min-w-0 w-full">
+        <div className="min-w-0 flex-1">
+          <h1 className="font-display text-[24px] font-bold tracking-tight truncate">Reports</h1>
+          <p className="text-[13px] font-semibold truncate" style={{ color: "var(--mut)" }}>
             Look back at any stretch — every number is computed from your local history. Day-by-day detail lives in the Day Log.
           </p>
         </div>
-        <Btn variant="outline" onClick={() => setView("settings")}><Settings2 size={13} /> Choose widgets</Btn>
+        <Btn variant="outline" onClick={() => setView("settings")} className="shrink-0"><Settings2 size={13} /> Choose widgets</Btn>
       </div>
 
       {/* range bar */}
-      <div className="card engine-panel flex flex-wrap items-center gap-2 p-3">
+      <div className="card engine-panel flex flex-wrap items-center gap-2 p-3 w-full min-w-0 overflow-hidden">
         {([["week", "This week"], ["last7", "Last 7 days"], ["month", "This month"], ["last30", "Last 30 days"], ["all", "All time"]] as [Preset, string][]).map(([p, l]) => (
           <button key={p} onClick={() => applyPreset(p)} className="rounded-lg px-2.5 py-1 text-[12px] font-bold transition-all"
             style={preset === p ? { background: "var(--accent)", color: "var(--on-accent)", cursor: "pointer" } : { color: "var(--mut)", background: "var(--bg)", cursor: "pointer" }}>
             {l}
           </button>
         ))}
-        <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold sm:ml-auto w-full sm:w-auto" style={{ color: "var(--mut)" }}>
-          <input type="date" className="inp flex-1 sm:flex-initial sm:w-[140px]" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setPreset("custom"); }} />
+        <div className="flex flex-wrap items-center gap-2 text-[12px] font-bold sm:ml-auto w-full sm:w-auto min-w-0" style={{ color: "var(--mut)" }}>
+          <input type="date" className="inp flex-1 sm:flex-initial sm:w-[140px] min-w-0" value={from} max={to} onChange={(e) => { setFrom(e.target.value); setPreset("custom"); }} />
           <span>→</span>
-          <input type="date" className="inp flex-1 sm:flex-initial sm:w-[140px]" value={to} min={from} onChange={(e) => { setTo(e.target.value); setPreset("custom"); }} />
+          <input type="date" className="inp flex-1 sm:flex-initial sm:w-[140px] min-w-0" value={to} min={from} onChange={(e) => { setTo(e.target.value); setPreset("custom"); }} />
         </div>
       </div>
 
       {/* summary strip */}
-      <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="stagger grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6 w-full min-w-0">
         {[
           { k: "Tracked", v: fmtDur(totalMin), sub: `${workSessions.length} sessions` },
           { k: "Completed", v: String(completedIn.length), sub: "tasks & recurrences" },
@@ -282,21 +282,21 @@ export function ReportsView() {
           { k: "Peak hour", v: hourBuckets.some((x) => x > 0) ? `${String(peakHour).padStart(2, "0")}:00` : "—", sub: "most-worked hour" },
           { k: "Avg energy", v: energies.length ? `${(Math.round((energies.reduce((a, x) => a + (x.log?.energy ?? 0), 0) / energies.length) * 10) / 10)}/5` : "—", sub: "from check-ins" },
         ].map((x) => (
-          <div key={x.k} className="card card-hover engine-panel p-3.5">
-            <div className="font-mono text-[21px] font-bold tnum" style={{ color: "var(--accent)" }}>{x.v}</div>
-            <div className="mt-0.5 text-[10.5px] font-bold uppercase tracking-wider" style={{ color: "var(--mut)" }}>{x.k}</div>
-            <div className="text-[10.5px] font-semibold" style={{ color: "var(--mut)" }}>{x.sub}</div>
+          <div key={x.k} className="card card-hover engine-panel p-3 min-w-0 overflow-hidden">
+            <div className="font-mono text-[20px] font-bold tnum truncate" style={{ color: "var(--accent)" }}>{x.v}</div>
+            <div className="mt-0.5 text-[10px] font-bold uppercase tracking-wider truncate" style={{ color: "var(--mut)" }}>{x.k}</div>
+            <div className="text-[10px] font-semibold truncate" style={{ color: "var(--mut)" }}>{x.sub}</div>
           </div>
         ))}
       </div>
 
       {!anyWidget && (
-        <div className="card">
+        <div className="card w-full min-w-0 overflow-hidden">
           <EmptyState icon={Settings2} title="All report widgets are hidden" body="Open Settings → Report widgets and switch some on — the grid reflows automatically." />
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 w-full min-w-0">
         {w.insights && widgetCard("Productivity insights", "auto-generated", (
           insights.length === 0 ? (
             <div className="text-[12.5px]" style={{ color: "var(--mut)" }}>Log some focused time and insights will appear here.</div>

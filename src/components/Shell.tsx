@@ -50,6 +50,7 @@ import {
   configureStatusBar,
   initNativeSystemBars,
   triggerHaptic,
+  initNotificationChannels,
 } from "../utils/native";
 import { Dashboard } from "../views/Dashboard";
 import { TasksView } from "../views/Tasks";
@@ -146,6 +147,7 @@ export function Shell() {
   useEffect(() => {
     initNativeSystemBars();
     configureStatusBar(state.settings.themeMode === "dark");
+    initNotificationChannels();
   }, [state.settings.themeMode]);
 
   // Sync view with URL hash
@@ -171,16 +173,19 @@ export function Shell() {
   useEffect(() => {
     const s = state.settings;
     const dark = s.themeMode === "dark";
-    const bg = normalizeHex(dark ? s.bgDark : s.bgLight) ?? (dark ? "#0f1714" : "#eef1ee");
+    // Default dark theme to pure OLED black #000000 for zero-power display on AMOLED/OLED screens
+    let bg = normalizeHex(dark ? s.bgDark : s.bgLight) ?? (dark ? "#000000" : "#ffffff");
+    if (dark && (bg === "#0f1714" || !bg)) bg = "#000000";
+    const isOled = dark && bg === "#000000";
     const derived: Record<TokenKey, string> = {
-      text: dark ? "#e8efe9" : "#182019",
+      text: dark ? "#f3f4f6" : "#182019",
       mut: "",
-      panel: dark ? mix(bg, "#ffffff", 0.045) : mix(bg, "#ffffff", 0.6),
-      panel2: dark ? mix(bg, "#ffffff", 0.09) : mix(bg, "#ffffff", 0.92),
-      line: dark ? mix(bg, "#ffffff", 0.14) : mix(bg, "#000000", 0.13),
+      panel: isOled ? "#080808" : dark ? mix(bg, "#ffffff", 0.045) : mix(bg, "#ffffff", 0.6),
+      panel2: isOled ? "#121212" : dark ? mix(bg, "#ffffff", 0.09) : mix(bg, "#ffffff", 0.92),
+      line: isOled ? "#1f1f1f" : dark ? mix(bg, "#ffffff", 0.14) : mix(bg, "#000000", 0.13),
       ok: dark ? "#6fbf8e" : "#3e8f60",
       warn: dark ? "#e0b457" : "#a67c1f",
-      danger: dark ? "#d66853" : "#b23c28",
+      danger: dark ? "#ef4444" : "#b23c28",
     };
     derived.mut = mix(derived.text, bg, 0.45);
     (Object.keys(derived) as TokenKey[]).forEach((k) => {
@@ -212,6 +217,7 @@ export function Shell() {
     root.dataset.reduceMotion = String(s.reduceMotion);
     root.dataset.reduceTransparency = String(s.reduceTransparency);
     root.dataset.highContrast = String(s.highContrast);
+    configureStatusBar(dark, bg);
   }, [state.settings]);
 
   /* ---------- launch greeting ---------- */
@@ -410,9 +416,17 @@ export function Shell() {
         style={{
           paddingTop: "calc(58px + var(--safe-top))",
           paddingBottom: "calc(76px + var(--safe-bottom))",
+          boxSizing: "border-box",
         }}
       >
-        <div className="w-full max-w-full min-w-0">{views[view]}</div>
+        <div className="w-full max-w-full min-w-0">
+          {views[view]}
+          <footer className="mt-8 mb-4 text-center select-none">
+            <span className="text-[11.5px] font-semibold tracking-wide text-[var(--mut)] opacity-80">
+              Crafted with precision by Krish Patel
+            </span>
+          </footer>
+        </div>
       </main>
 
       {/* 4. Global Overlays & Mini Timer */}

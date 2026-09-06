@@ -19,8 +19,19 @@ import {
 import { buildSeedState } from "./data/seed";
 import { loadStoredFont } from "./utils/fonts";
 import { fmtClock, nextOccurrence, todayIso } from "./utils/core";
-import { loadStateFromIDB, saveStateToIDB, loadErasuredFlag, saveErasedFlag, migrateToIDB } from "./utils/idb";
-import { triggerHaptic } from "./utils/native";
+import {
+  loadStateFromIDB,
+  saveStateToIDB,
+  loadErasuredFlag,
+  saveErasedFlag,
+  migrateToIDB,
+} from "./utils/idb";
+import {
+  cancelTaskDueNotification,
+  isNative,
+  scheduleTaskDueNotification,
+  triggerHaptic,
+} from "./utils/native";
 
 const LS_KEY = "lifelog.state.v1";
 /** When set, a missing state file boots into a blank app instead of demo data. */
@@ -263,6 +274,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (task.done) return s; // recurring tasks are never "permanently" done
           const anchor = task.due ?? todayIso();
           const nextDue = nextOccurrence(anchor, task.recurrence);
+          if (isNative) cancelTaskDueNotification(taskId);
           pushToast(`Done — next occurrence ${nextDue}`, "ok");
           return {
             ...s,
@@ -274,6 +286,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
         }
         const nowDone = !task.done;
+        if (nowDone && isNative) cancelTaskDueNotification(taskId);
         triggerHaptic(nowDone ? "success" : "light");
         return {
           ...s,
@@ -286,12 +299,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [pushToast],
   );
 
-  /* ----- reminder scheduler (blocks + snoozes) ----- */
+  /* ----- reminder scheduler (blocks + snoozes + Android AlarmManager exact alarms) ----- */
   useEffect(() => {
     if (!state) return;
     const timers: number[] = [];
     const now = Date.now();
-    const lead = state.settings.reminderLeadMin * 60000;
+    const leadMin = state.settings.reminderLeadMin;
+    const lead = leadMin * 60000;
     const notify = (title: string, body: string) => {
       pushToast(`${title} — ${body}`, "warn");
       if (
@@ -307,7 +321,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     };
     for (const t of state.tasks) {
-      if (t.done) continue;
+      if (t.done) {
+        if (isNative) cancelTaskDueNotification(t.id);
+        continue;
+      }
+
+      // Schedule background exact alarm via Android AlarmManager (fires even when app is killed)
+      if (state.settings.notifyEnabled && isNative && t.due && t.dueTime) {
+        scheduleTaskDueNotification(t, leadMin);
+      }
+
       const targets: { at: number; what: string }[] = [];
       if (t.due && t.dueTime) {
         targets.push({ at: new Date(`${t.due}T${t.dueTime}:00`).getTime(), what: "Time block starting" });

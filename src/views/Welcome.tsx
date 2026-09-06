@@ -106,7 +106,12 @@ export function WelcomeView({ onEnter, canDismiss = true }: WelcomeProps) {
   ];
 
   return (
-    <div className="relative min-h-screen w-full overflow-y-auto bg-[var(--bg)] text-[var(--text)] select-text">
+    <div
+      className="relative min-h-screen w-full overflow-y-auto bg-[var(--bg)] text-[var(--text)] select-text"
+      style={{
+        paddingBottom: "max(calc(var(--safe-bottom, 12px) + 24px), 36px)",
+      }}
+    >
       {/* Background ambient gradient glow */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden opacity-40">
         <div
@@ -119,11 +124,16 @@ export function WelcomeView({ onEnter, canDismiss = true }: WelcomeProps) {
         />
       </div>
 
-      {/* Top Navigation Bar */}
-      <header className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--panel)]/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-          <div className="flex items-center gap-3">
-            <svg width={32} height={32} viewBox="0 0 32 32" aria-hidden>
+      {/* Top Navigation Bar with notch and status bar safe insets */}
+      <header
+        className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--panel)]/95 backdrop-blur-md select-none transition-colors"
+        style={{
+          paddingTop: "var(--safe-top, 44px)",
+        }}
+      >
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-2.5">
+            <svg width={30} height={30} viewBox="0 0 32 32" aria-hidden className="shrink-0">
               <rect width="32" height="32" rx="9" fill="var(--panel2)" stroke="var(--line)" />
               <circle
                 cx="16"
@@ -138,15 +148,15 @@ export function WelcomeView({ onEnter, canDismiss = true }: WelcomeProps) {
               />
               <circle cx="16" cy="16" r="3" fill="var(--accent)" />
             </svg>
-            <div>
-              <span className="font-display text-[17px] font-extrabold tracking-tight">LifeLog</span>
-              <span className="ml-2 rounded-full border border-[var(--line)] bg-[var(--panel2)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--mut)]">
+            <div className="flex items-center gap-1.5">
+              <span className="font-display text-[16px] sm:text-[17px] font-extrabold tracking-tight">LifeLog</span>
+              <span className="rounded-full border border-[var(--line)] bg-[var(--panel2)] px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-wider text-[var(--mut)]">
                 Local-First
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <a
               href="#features"
               className="hidden text-[13px] font-bold text-[var(--mut)] transition-colors hover:text-[var(--text)] sm:inline-block"
@@ -159,16 +169,21 @@ export function WelcomeView({ onEnter, canDismiss = true }: WelcomeProps) {
             >
               How It Works
             </a>
-            <Btn variant="primary" size="md" onClick={onEnter} className="shadow-lg shadow-[var(--accent)]/20">
+            <Btn
+              variant="primary"
+              size="sm"
+              onClick={onEnter}
+              className="shadow-lg shadow-[var(--accent)]/20 text-[12px] sm:text-[13px] !py-1.5 sm:!py-2"
+            >
               <span>{canDismiss ? "Enter LifeLog" : "Get Started"}</span>
-              <ArrowRight size={14} />
+              <ArrowRight size={13} />
             </Btn>
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="relative mx-auto max-w-5xl px-6 pt-16 pb-20 text-center">
+      <section className="relative mx-auto max-w-5xl px-4 sm:px-6 pt-8 sm:pt-14 pb-16 text-center">
         <div className="inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--panel)] px-3.5 py-1.5 shadow-sm">
           <ShieldCheck size={14} style={{ color: "var(--ok)" }} />
           <span className="text-[12px] font-bold text-[var(--mut)]">
@@ -357,7 +372,7 @@ export function WelcomeView({ onEnter, canDismiss = true }: WelcomeProps) {
 
       {/* Footer */}
       <footer className="border-t border-[var(--line)] py-8 text-center text-[12px] font-semibold text-[var(--mut)]">
-        <p>LifeLog · 100% Local-First Productivity Sanctuary · Built with React & TypeScript</p>
+        <p>LifeLog · Crafted by <span className="text-[var(--accent)] font-bold">Krish Patel</span> · 100% Local-First Sanctuary</p>
       </footer>
     </div>
   );

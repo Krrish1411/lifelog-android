@@ -329,12 +329,12 @@ export function NotesView() {
   );
 
   const editor = (popout: boolean) => (
-    <div className={cn("flex min-h-0 flex-1 flex-col", popout && "h-full")}>
+    <div className={cn("flex min-h-0 flex-1 flex-col w-full min-w-0", popout && "h-full")}>
       {!selNote ? (
         <EmptyState icon={Lock} title="Select a note" body="Pick one from the list, or create a new note. Everything is encrypted before it touches storage." />
       ) : (
         <>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 w-full min-w-0">
             <input
               className={cn("inp min-w-0 flex-1 border-0 bg-transparent font-display font-bold !shadow-none focus:!border-0 focus:!shadow-none", popout ? "text-[26px]" : "text-[20px]")}
               value={draft.title}
@@ -342,7 +342,7 @@ export function NotesView() {
               placeholder="Note title"
             />
             <button onClick={() => togglePinNote(selNote)} title={selNote.pinned ? "Unpin" : "Pin to top"}
-              className="rounded-lg p-1.5 transition-all hover:scale-110" style={{ color: selNote.pinned ? "var(--accent)" : "var(--mut)", cursor: "pointer" }}>
+              className="rounded-lg p-1.5 transition-all hover:scale-110 shrink-0" style={{ color: selNote.pinned ? "var(--accent)" : "var(--mut)", cursor: "pointer" }}>
               {selNote.pinned ? <Pin size={15} fill="var(--accent)" /> : <Pin size={15} />}
             </button>
             <span className="chip shrink-0 text-[10px]" style={{ color: "var(--accent)" }}><Lock size={10} /> AES-256</span>
@@ -350,16 +350,16 @@ export function NotesView() {
               {saveState === "saving" ? "encrypting…" : "🔒 saved"}
             </span>
             <button onClick={() => setPopped((v) => !v)} title={popout ? "Back to normal view" : "Pop out to full screen"}
-              className="rounded-lg p-1.5 transition-all hover:scale-110" style={{ color: "var(--mut)", cursor: "pointer" }}>
+              className="rounded-lg p-1.5 transition-all hover:scale-110 shrink-0" style={{ color: "var(--mut)", cursor: "pointer" }}>
               {popout ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
             </button>
           </div>
-          <div className="mt-1 text-[11px] font-semibold" style={{ color: "var(--mut)" }}>
+          <div className="mt-1 text-[11px] font-semibold truncate w-full min-w-0" style={{ color: "var(--mut)" }}>
             {selNote.daily && selNote.day ? `Daily note · ${fmtDayShort(selNote.day)} · ` : `${state.folders.find((f) => f.id === selNote.folderId)?.name ?? ""} · `}
             markdown supported · autosaves as you type
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-3 flex flex-col gap-1.5 w-full min-w-0">
             {toolbar}
             {attachmentsBar}
           </div>
@@ -424,9 +424,9 @@ export function NotesView() {
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[196px_280px_1fr]">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[196px_280px_1fr] w-full min-w-0">
         {/* folders */}
-        <div className={cn("card engine-panel flex flex-col gap-1 overflow-y-auto p-2.5", selId && "hidden lg:flex")}>
+        <div className={cn("card engine-panel flex flex-col gap-1 overflow-y-auto p-2.5 w-full min-w-0 overflow-hidden", selId && "hidden lg:flex")}>
           {[{ id: "all", name: "All notes", emoji: "🗂️", pinned: false }, ...folders.map((f) => ({ id: f.id, name: f.name, emoji: f.id === "f-daily" ? "📅" : "📁", pinned: !!f.pinned }))].map((f) => {
             const count = f.id === "all" ? state.notes.length : state.notes.filter((n) => n.folderId === f.id).length;
             return (
@@ -470,7 +470,7 @@ export function NotesView() {
         </div>
 
         {/* list */}
-        <div className={cn("card engine-panel flex min-h-0 flex-col p-2.5", selId && "hidden lg:flex")}>
+        <div className={cn("card engine-panel flex min-h-0 flex-col p-2.5 w-full min-w-0 overflow-hidden", selId && "hidden lg:flex")}>
           <div className="flex-1 overflow-y-auto pr-1">
             {notes.length === 0 && <EmptyState icon={Lock} title="No notes here" body="Create a note or open today’s daily note." />}
             {notes.map((n) => (
@@ -487,7 +487,7 @@ export function NotesView() {
                     {(n.attachments?.length ?? 0) > 0 && <Paperclip size={10} style={{ color: "var(--mut)" }} />}
                     <Lock size={10} className="ml-auto shrink-0" style={{ color: "var(--mut)" }} />
                   </div>
-                  <div className="mt-0.5 text-[10.5px] font-semibold tnum" style={{ color: "var(--mut)" }}>
+                  <div className="mt-0.5 text-[10.5px] font-semibold tnum truncate" style={{ color: "var(--mut)" }}>
                     {n.daily && n.day ? fmtDayShort(n.day) : state.folders.find((f) => f.id === n.folderId)?.name} · edited {fmtDayShort(isoOf(n.updatedAt))} {fmtClock(n.updatedAt)}
                   </div>
                 </button>
@@ -505,7 +505,7 @@ export function NotesView() {
         </div>
 
         {/* page editor */}
-        <div className={cn("card engine-panel flex min-h-[400px] flex-col p-4 sm:p-5", !selId && "hidden lg:flex")}>
+        <div className={cn("card engine-panel flex min-h-[400px] flex-col p-4 sm:p-5 w-full min-w-0 overflow-hidden", !selId && "hidden lg:flex")}>
           {selId && (
             <button
               onClick={() => setSelId(null)}

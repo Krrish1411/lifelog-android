@@ -247,7 +247,7 @@ export const DEFAULT_SETTINGS: Settings = {
   layout: "glass",
   themeMode: "light",
   accent: "#dc2626",
-  bgDark: "#0f1714",
+  bgDark: "#000000",
   bgLight: "#ffffff",
   tokens: {},
   greeting: "daily",

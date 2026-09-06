@@ -435,14 +435,14 @@ export function TasksView({
     }
     setProjDialog({ open: false, project: null });
   };
-  const deleteProject = async () => {
-    const p = projDialog.project;
+  const deleteProject = async (projToDelete?: Project | null) => {
+    const p = projToDelete ?? projDialog.project;
     if (!p) return;
     const taskCount = state.tasks.filter((t) => t.projectId === p.id).length;
     const ok = await confirm({
-      title: "Delete project — permanently",
-      body: `“${p.name}” and its ${taskCount} task(s) will be removed. Tracked history stays in reports. This cannot be undone.`,
-      confirmLabel: "Delete forever",
+      title: `Delete project "${p.name}"?`,
+      body: `“${p.name}” and its ${taskCount} task(s) will be permanently deleted. Tracked history stays in reports. This cannot be undone.`,
+      confirmLabel: "Delete project",
       danger: true,
       requireText: p.name,
     });
@@ -454,7 +454,7 @@ export function TasksView({
     }));
     setProjDialog({ open: false, project: null });
     setSel("today");
-    toast("Project deleted", "warn");
+    toast(`Deleted project "${p.name}"`, "warn");
   };
 
   /* ---------------- tag manager ---------------- */
@@ -489,12 +489,12 @@ export function TasksView({
     setTagMgr({ open: false, tag: null });
     toast(next === old ? "Tag colour updated" : `Tag renamed to “${next}”`, "ok");
   };
-  const deleteTag = async () => {
-    const old = tagMgr.tag;
+  const deleteTag = async (tagToDelete?: string | null) => {
+    const old = tagToDelete ?? tagMgr.tag;
     if (!old) return;
     const usedBy = state.tasks.filter((t) => t.tags.includes(old)).length;
     const ok = await confirm({
-      title: "Delete tag",
+      title: `Delete tag "#${old}"?`,
       body: `“${old}” will be removed from ${usedBy} task(s). The tasks themselves stay.`,
       confirmLabel: "Delete tag",
       danger: true,
@@ -513,248 +513,111 @@ export function TasksView({
     });
     if (typeof sel === "object" && "tag" in sel && sel.tag === old) setSel("all");
     setTagMgr({ open: false, tag: null });
-    toast("Tag deleted", "warn");
+    toast(`Deleted tag "#${old}"`, "warn");
   };
 
-  const navRow = (
-    key: string,
-    icon: React.ReactNode,
-    label: string,
-    count: number,
-    target: SmartView
-  ) => (
-    <button
-      key={key}
-      onClick={() => setSel(target)}
-      className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-left text-[12.5px] font-bold transition-all"
-      style={
-        viewKey(sel) === key
-          ? { background: "var(--accent-soft)", color: "var(--accent)" }
-          : { color: "var(--text)", cursor: "pointer" }
-      }
-    >
-      <span className="w-[18px] text-center">{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span
-        className="tnum rounded-md px-1.5 text-[10.5px] font-bold"
-        style={{ background: "var(--panel2)", color: "var(--mut)" }}
-      >
-        {count}
-      </span>
-    </button>
-  );
-
-  const tagDot = (tag: string) => (
-    <span
-      className="inline-block h-[9px] w-[9px] rounded-full"
-      style={{ background: state.tagColors[tag] ?? "var(--accent)" }}
-    />
-  );
+  const activeProject =
+    typeof sel === "object" && "project" in sel
+      ? state.projects.find((p) => p.id === sel.project) ?? null
+      : null;
+  const activeTag =
+    typeof sel === "object" && "tag" in sel ? sel.tag : null;
 
   return (
     <div className="flex flex-col gap-3.5 w-full max-w-full overflow-x-hidden">
-      {/* Mobile Filter & Drawer Quick Access Bar */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
-        {onOpenDrawer && (
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic("medium");
-              onOpenDrawer();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border bg-[var(--panel)] text-[var(--accent)] border-[var(--line)] shadow-xs hover:bg-[var(--panel2)]"
-            title="Open Drawer to view all projects, tags and priorities"
-          >
-            <Filter size={13} />
-            <span>Filters & Projects</span>
-          </button>
-        )}
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic("light");
-              setSel("inbox");
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
-              sel === "inbox"
-                ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
-                : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
-            )}
-          >
-            <Inbox size={13} />
-            <span>Inbox</span>
-            {inboxCount > 0 && (
-              <span
-                className={cn(
-                  "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
-                  sel === "inbox" ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
-                )}
-              >
-                {inboxCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic("light");
-              setSel("today");
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
-              sel === "today"
-                ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
-                : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
-            )}
-          >
-            <CalendarPlus size={13} />
-            <span>Today</span>
-            {todayCount > 0 && (
-              <span
-                className={cn(
-                  "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
-                  sel === "today" ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
-                )}
-              >
-                {todayCount}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic("light");
-              setSel("all");
-            }}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
-              sel === "all"
-                ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
-                : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
-            )}
-          >
-            <ListChecks size={13} />
-            <span>All</span>
-            <span
-              className={cn(
-                "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
-                sel === "all" ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
-              )}
-            >
-              {openTasks.length}
-            </span>
-          </button>
-
-          {/* Separator */}
-          {state.projects.length > 0 && <div className="h-4 w-[1px] bg-[var(--line)] shrink-0 mx-0.5" />}
-
-          {/* Projects */}
-          {state.projects.map((p) => {
-            const isSelected = viewKey(sel) === `p:${p.id}`;
-            const pCount = openTasks.filter((t) => t.projectId === p.id).length;
-            return (
+      {/* Task list header & controls */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
+        <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {onOpenDrawer && (
               <button
-                key={p.id}
                 type="button"
                 onClick={() => {
-                  triggerHaptic("light");
-                  setSel({ project: p.id });
+                  triggerHaptic("medium");
+                  onOpenDrawer();
                 }}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
-                  isSelected
-                    ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
-                    : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
-                )}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all cursor-pointer border bg-[var(--panel)] text-[var(--accent)] border-[var(--line)] shadow-xs hover:bg-[var(--panel2)] active:scale-95"
+                title="Open sidebar to filter tasks by project, tag or priority"
               >
-                <span>{p.emoji}</span>
-                <span>{p.name}</span>
-                {pCount > 0 && (
-                  <span
-                    className={cn(
-                      "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
-                      isSelected ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
-                    )}
-                  >
-                    {pCount}
-                  </span>
-                )}
+                <Filter size={13} />
+                <span>Filters</span>
               </button>
-            );
-          })}
-
-          {/* Tags Separator */}
-          {allTags.length > 0 && <div className="h-4 w-[1px] bg-[var(--line)] shrink-0 mx-0.5" />}
-
-          {/* Tags */}
-          {allTags.map((t) => {
-            const isSelected = viewKey(sel) === `t:${t}`;
-            const tCount = openTasks.filter((x) =>
-              x.tags.some((y) => y.toLowerCase() === t.toLowerCase())
-            ).length;
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => {
-                  triggerHaptic("light");
-                  setSel({ tag: t });
-                }}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 transition-all cursor-pointer border",
-                  isSelected
-                    ? "bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)] shadow-sm"
-                    : "bg-[var(--panel)] text-[var(--text)] border-[var(--line)]"
+            )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-[20px] sm:text-[24px] font-bold tracking-tight truncate">
+                  {selTitle}
+                </h1>
+                {activeProject && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openProject(activeProject)}
+                      className="p-1.5 rounded-lg text-[var(--mut)] hover:text-[var(--text)] hover:bg-[var(--panel2)] transition-colors cursor-pointer"
+                      title="Edit project"
+                      aria-label="Edit project"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteProject(activeProject)}
+                      className="p-1.5 rounded-lg text-[var(--mut)] hover:text-[var(--danger)] hover:bg-[var(--panel2)] transition-colors cursor-pointer"
+                      title="Delete project"
+                      aria-label="Delete project"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 )}
-              >
-                {tagDot(t)}
-                <span>#{t}</span>
-                {tCount > 0 && (
-                  <span
-                    className={cn(
-                      "ml-0.5 rounded-full px-1.5 py-0.2 text-[10px] font-bold",
-                      isSelected ? "bg-black/20 text-white" : "bg-[var(--panel2)] text-[var(--mut)]"
-                    )}
-                  >
-                    {tCount}
-                  </span>
+                {activeTag && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => openTagMgr(activeTag)}
+                      className="p-1.5 rounded-lg text-[var(--mut)] hover:text-[var(--text)] hover:bg-[var(--panel2)] transition-colors cursor-pointer"
+                      title="Edit tag"
+                      aria-label="Edit tag"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteTag(activeTag)}
+                      className="p-1.5 rounded-lg text-[var(--mut)] hover:text-[var(--danger)] hover:bg-[var(--panel2)] transition-colors cursor-pointer"
+                      title="Delete tag"
+                      aria-label="Delete tag"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 )}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Task list header & controls */}
-        <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between w-full">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="font-display text-[22px] sm:text-[24px] font-bold tracking-tight">{selTitle}</h1>
+              </div>
               <p className="text-[12px] font-semibold" style={{ color: "var(--mut)" }}>
                 {list.length} open · {completed.length} completed
               </p>
             </div>
-            {/* Sort selector for mobile */}
-            <div className="flex items-center gap-0.5 bg-[var(--panel2)] p-0.5 rounded-xl border border-[var(--line)] text-xs shrink-0 sm:hidden">
-              {(["manual", "due", "priority"] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setSortMode(m)}
-                  className="px-2 py-0.5 rounded-[9px] font-bold whitespace-nowrap transition-all cursor-pointer text-[11px]"
-                  style={
-                    sortMode === m
-                      ? { background: "var(--accent)", color: "var(--on-accent)" }
-                      : { color: "var(--mut)", background: "transparent" }
-                  }
-                >
-                  {m === "manual" ? "Manual" : m === "due" ? "Due" : "Priority"}
-                </button>
-              ))}
-            </div>
           </div>
+
+          {/* Sort selector for mobile */}
+          <div className="flex items-center gap-0.5 bg-[var(--panel2)] p-0.5 rounded-xl border border-[var(--line)] text-xs shrink-0 sm:hidden">
+            {(["manual", "due", "priority"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setSortMode(m)}
+                className="px-2 py-0.5 rounded-[9px] font-bold whitespace-nowrap transition-all cursor-pointer text-[11px]"
+                style={
+                  sortMode === m
+                    ? { background: "var(--accent)", color: "var(--on-accent)" }
+                    : { color: "var(--mut)", background: "transparent" }
+                }
+              >
+                {m === "manual" ? "Manual" : m === "due" ? "Due" : "Priority"}
+              </button>
+            ))}
+          </div>
+        </div>
           <div className="flex items-center gap-2 w-full sm:w-auto">
             {/* Sort selector for desktop */}
             <div className="hidden sm:flex items-center gap-0.5 bg-[var(--panel2)] p-0.5 rounded-xl border border-[var(--line)] text-xs shrink-0">
@@ -915,7 +778,7 @@ export function TasksView({
         footer={
           <>
             {projDialog.project && (
-              <Btn variant="danger" className="mr-auto" onClick={deleteProject}>
+              <Btn variant="danger" className="mr-auto" onClick={() => deleteProject()}>
                 <Trash2 size={13} /> Delete project
               </Btn>
             )}
@@ -961,7 +824,7 @@ export function TasksView({
         width={440}
         footer={
           <>
-            <Btn variant="danger" className="mr-auto" onClick={deleteTag}>
+            <Btn variant="danger" className="mr-auto" onClick={() => deleteTag()}>
               <Trash2 size={13} /> Delete tag
             </Btn>
             <Btn variant="ghost" onClick={() => setTagMgr({ open: false, tag: null })}>
@@ -1103,7 +966,7 @@ function TaskCard({
         onDragEndTask?.();
       }}
       className={cn(
-        "card card-hover overflow-hidden group/card transition-all duration-150 relative",
+        "card card-hover overflow-hidden group/card transition-all duration-150 relative w-full min-w-0",
         isDragging && "opacity-40 scale-[0.98] ring-2 ring-[var(--accent)] shadow-md"
       )}
       style={done ? { opacity: 0.92 } : undefined}
@@ -1128,9 +991,9 @@ function TaskCard({
           </button>
         </div>
       )}
-      <div className="flex flex-col p-3 sm:p-3.5 gap-2 w-full max-w-full">
+      <div className="flex flex-col p-3 sm:p-3.5 gap-2 w-full max-w-full min-w-0">
         {/* Row 1: Left Checkbox + Middle Title (full width) + Right Actions */}
-        <div className="flex items-start gap-3 w-full">
+        <div className="flex items-start gap-3 w-full min-w-0">
           {/* Reordering in manual mode */}
           {!done && sortMode === "manual" && (
             <div className="flex items-center gap-0.5 shrink-0 pt-0.5">
