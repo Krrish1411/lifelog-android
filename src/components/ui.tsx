@@ -70,46 +70,51 @@ export function Modal({
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", h);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [open, onClose]);
   if (!open) return null;
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fadein fixed inset-0 flex items-start justify-center overflow-y-auto p-3 sm:p-4"
+      className="fadein fixed inset-0 flex items-start justify-center overflow-y-auto p-2 sm:p-4 overscroll-contain"
       style={{
         background: "rgba(4,8,6,0.66)",
         backdropFilter: "blur(3px)",
         WebkitBackdropFilter: "blur(3px)",
         zIndex,
-        paddingTop: "max(calc(var(--safe-top, 0px) + 12px), 4vh)",
-        paddingBottom: "max(calc(var(--safe-bottom, 0px) + 16px), 24px)",
+        paddingTop: "max(calc(var(--safe-top, 0px) + 8px), 2vh)",
+        paddingBottom: "max(calc(var(--safe-bottom, 0px) + 12px), 16px)",
       }}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className="pop w-full max-w-[calc(100vw-24px)] rounded-2xl border shadow-2xl"
-        style={{ maxWidth: `min(${typeof width === "number" ? `${width}px` : width}, calc(100vw - 24px))`, background: "var(--panel)", borderColor: "var(--line)" }}
+        className="pop w-full max-w-[calc(100vw-16px)] rounded-2xl border shadow-2xl flex flex-col max-h-[92vh] overflow-hidden"
+        style={{ maxWidth: `min(${typeof width === "number" ? `${width}px` : width}, calc(100vw - 16px))`, background: "var(--panel)", borderColor: "var(--line)" }}
       >
         <div
-          className="flex items-center justify-between border-b px-5 py-3.5"
+          className="flex items-center justify-between border-b px-4 py-3 sm:px-5 sm:py-3.5 shrink-0"
           style={{ borderColor: "var(--line)" }}
         >
           <div className="font-display text-[15px] font-bold tracking-tight">{title}</div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 transition-colors hover:opacity-75"
+            className="rounded-lg p-1.5 transition-colors hover:opacity-75 cursor-pointer"
             style={{ color: "var(--mut)" }}
             aria-label="Close"
           >
             <X size={16} />
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-5 sm:py-4 overscroll-contain">{children}</div>
         {footer && (
           <div
-            className="flex items-center justify-end gap-2 border-t px-5 py-3.5"
+            className="flex items-center justify-end gap-2 border-t px-4 py-3 sm:px-5 sm:py-3.5 shrink-0 bg-[var(--panel)]"
             style={{ borderColor: "var(--line)" }}
           >
             {footer}

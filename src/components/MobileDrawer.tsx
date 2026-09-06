@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Inbox,
   CalendarPlus,
@@ -52,6 +52,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [tagName, setTagName] = useState("");
   const [tagColor, setTagColor] = useState("#e8a33d");
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -198,7 +207,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Task navigation drawer">
+    <div className="fixed inset-0 z-50 flex overscroll-contain" role="dialog" aria-modal="true" aria-label="Task navigation drawer">
       {/* Dimmed touch backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -207,7 +216,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
       {/* Drawer content panel */}
       <aside
-        className="relative z-10 flex h-full w-[290px] max-w-[85vw] flex-col border-r bg-[var(--panel)] shadow-2xl transition-transform animate-in slide-in-from-left duration-250 select-none"
+        className="relative z-10 flex h-full w-[290px] max-w-[85vw] flex-col border-r bg-[var(--panel)] shadow-2xl transition-transform animate-in slide-in-from-left duration-250 select-none overscroll-contain"
         style={{
           borderColor: "var(--line)",
           paddingTop: "max(calc(var(--safe-top) + 8px), 16px)",
@@ -232,7 +241,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </div>
 
         {/* Scrollable Navigation Body */}
-        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+        <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4 overscroll-contain">
           {/* Section 1: Standard Smart Views */}
           <div className="space-y-0.5">
             <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--mut)]">

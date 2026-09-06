@@ -3,7 +3,7 @@ import {
   Bold, CheckSquare, Film, FolderPlus, Heading1, Heading2,
   Highlighter, ImageIcon, Italic, Link2, List, ListOrdered, ListTodo,
   Lock, Maximize2, Mic, Minimize2, Minus, PanelLeft,
-  Paperclip, Pin, PinOff, Plus, Quote, Square, Strikethrough,
+  Paperclip, Pencil, Pin, PinOff, Plus, Quote, Square, Strikethrough,
   Trash2, Underline, X, Loader2
 } from "lucide-react";
 import type { Attachment, Note } from "../types";
@@ -35,7 +35,17 @@ export function NotesView() {
   const [draft, setDraft] = useState<Draft>({ title: "", text: "" });
   const [newFolder, setNewFolder] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<{ id: string; name: string } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [drawerOpen]);
   const [popped, setPopped] = useState(false);
   const [preview, setPreview] = useState<"write" | "preview">("write");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
@@ -202,13 +212,42 @@ export function NotesView() {
     toast("Folder added", "ok");
   };
 
+  const saveFolderEdit = () => {
+    if (!editingFolder) return;
+    const name = editingFolder.name.trim();
+    if (!name) {
+      toast("Folder name cannot be empty", "err");
+      return;
+    }
+    set((s) => ({
+      ...s,
+      folders: s.folders.map((f) => (f.id === editingFolder.id ? { ...f, name } : f)),
+    }));
+    setEditingFolder(null);
+    toast("Folder renamed", "ok");
+  };
+
   const deleteFolder = async (id: string) => {
+    const f = state.folders.find((x) => x.id === id);
     const count = state.notes.filter((n) => n.folderId === id).length;
-    if (count > 0) return toast(`Folder still has ${count} note(s) — move or delete them first`, "err");
-    const ok = await confirm({ title: "Delete folder", body: "This empty folder will be removed.", confirmLabel: "Delete", danger: true });
+    const body =
+      count > 0
+        ? `Delete folder “${f?.name ?? "Folder"}”? Its ${count} note(s) will be kept in All Notes.`
+        : `Delete empty folder “${f?.name ?? "Folder"}”?`;
+    const ok = await confirm({
+      title: "Delete folder",
+      body,
+      confirmLabel: "Delete folder",
+      danger: true,
+    });
     if (!ok) return;
-    set((s) => ({ ...s, folders: s.folders.filter((f) => f.id !== id) }));
-    setFolderSel("all");
+    set((s) => ({
+      ...s,
+      folders: s.folders.filter((item) => item.id !== id),
+      notes: s.notes.map((n) => (n.folderId === id ? { ...n, folderId: "f-daily" } : n)),
+    }));
+    if (folderSel === id) setFolderSel("all");
+    toast("Folder deleted", "warn");
   };
 
   /* ---------------- attachments ---------------- */
@@ -372,7 +411,7 @@ export function NotesView() {
       {[{ id: "all", name: "All notes", emoji: "🗂️", pinned: false }, ...folders.map((f) => ({ id: f.id, name: f.name, emoji: f.id === "f-daily" ? "📅" : "📁", pinned: !!f.pinned }))].map((f) => {
         const count = f.id === "all" ? state.notes.length : state.notes.filter((n) => n.folderId === f.id).length;
         return (
-          <div key={f.id} className="group flex items-center">
+          <div key={f.id} className="group flex items-center gap-1">
             <button
               onClick={() => { setFolderSel(f.id); }}
               className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12.5px] font-bold transition-all"
@@ -383,14 +422,35 @@ export function NotesView() {
               <span className="tnum ml-auto text-[10.5px] px-1.5 py-0.5 rounded-full" style={{ background: "var(--panel2)", color: "var(--mut)" }}>{count}</span>
             </button>
             {f.id !== "all" && (
-              <span className="mr-1 hidden items-center gap-0.5 group-hover:flex">
-                <button onClick={() => togglePinFolder(f.id, f.pinned)} className="rounded p-0.5" style={{ color: f.pinned ? "var(--accent)" : "var(--mut)", cursor: "pointer" }} title={f.pinned ? "Unpin folder" : "Pin folder"}>
-                  {f.pinned ? <PinOff size={11} /> : <Pin size={11} />}
+              <span className="flex items-center gap-0.5 pr-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => togglePinFolder(f.id, f.pinned)}
+                  className="rounded p-1 text-[var(--mut)] hover:text-[var(--accent)] transition-colors cursor-pointer"
+                  style={{ color: f.pinned ? "var(--accent)" : undefined }}
+                  title={f.pinned ? "Unpin folder" : "Pin folder"}
+                >
+                  {f.pinned ? <PinOff size={12} /> : <Pin size={12} />}
                 </button>
                 {f.id !== "f-daily" && (
-                  <button onClick={() => deleteFolder(f.id)} className="rounded p-0.5" style={{ color: "var(--mut)", cursor: "pointer" }} title="Delete folder">
-                    <Trash2 size={11} />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setEditingFolder({ id: f.id, name: f.name })}
+                      className="rounded p-1 text-[var(--mut)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                      title="Rename folder"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteFolder(f.id)}
+                      className="rounded p-1 text-[var(--mut)] hover:text-[var(--danger)] transition-colors cursor-pointer"
+                      title="Delete folder"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </>
                 )}
               </span>
             )}
@@ -439,7 +499,7 @@ export function NotesView() {
                     : "border-[var(--line)] bg-[var(--panel)] hover:bg-[var(--panel2)]"
                 )}
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 pr-12">
                   {n.pinned && <Pin size={11} fill="var(--accent)" style={{ color: "var(--accent)" }} />}
                   {n.daily && <span className="text-[12px]">📅</span>}
                   <span className={cn("truncate text-[13px] font-bold", isSelected ? "text-[var(--accent)]" : "text-[var(--text)]")}>
@@ -456,12 +516,12 @@ export function NotesView() {
                   </span>
                 </div>
               </button>
-              <div className="absolute right-2 top-2 hidden group-hover:flex items-center gap-1 bg-[var(--panel)] rounded-md p-0.5 shadow-sm border border-[var(--line)]">
+              <div className="absolute right-2 top-2 flex sm:hidden sm:group-hover:flex items-center gap-1 bg-[var(--panel)] rounded-md p-1 shadow-sm border border-[var(--line)]">
                 <button onClick={(e) => { e.stopPropagation(); togglePinNote(n); }} style={{ color: n.pinned ? "var(--accent)" : "var(--mut)", cursor: "pointer" }} title={n.pinned ? "Unpin" : "Pin"}>
-                  {n.pinned ? <PinOff size={11} /> : <Pin size={11} />}
+                  {n.pinned ? <PinOff size={12} /> : <Pin size={12} />}
                 </button>
                 <button onClick={(e) => { e.stopPropagation(); deleteNote(n); }} style={{ color: "var(--danger)", cursor: "pointer" }} title="Delete">
-                  <Trash2 size={11} />
+                  <Trash2 size={12} />
                 </button>
               </div>
             </div>
@@ -587,6 +647,26 @@ export function NotesView() {
               <div className="mt-1 flex items-center gap-2 text-[11px] font-medium text-[var(--mut)] flex-wrap">
                 <span>{noteDate}</span>
                 <span>•</span>
+                <select
+                  value={selNote.folderId}
+                  onChange={(e) => {
+                    const folderId = e.target.value;
+                    set((s) => ({
+                      ...s,
+                      notes: s.notes.map((n) => (n.id === selNote.id ? { ...n, folderId, updatedAt: Date.now() } : n)),
+                    }));
+                    toast("Folder updated", "ok");
+                  }}
+                  className="bg-transparent border border-[var(--line)] rounded px-1.5 py-0.5 text-[10.5px] font-bold text-[var(--mut)] hover:text-[var(--text)] cursor-pointer outline-none"
+                  title="Change folder"
+                >
+                  {state.folders.map((f) => (
+                    <option key={f.id} value={f.id} className="bg-[var(--panel)] text-[var(--text)]">
+                      {f.id === "f-daily" ? "📅 " : "📁 "} {f.name}
+                    </option>
+                  ))}
+                </select>
+                <span>•</span>
                 <span>{wordCount} words</span>
                 <span>•</span>
                 <span className="inline-flex items-center gap-1 text-[var(--accent)] font-semibold">
@@ -675,7 +755,7 @@ export function NotesView() {
     <div className="flex h-[calc(100vh-140px)] sm:h-[calc(100vh-115px)] flex-col w-full max-w-full overflow-hidden">
       {/* Slide-over Drawer for Folders & Notes */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Folders and notes drawer">
+        <div className="fixed inset-0 z-50 flex overscroll-contain" role="dialog" aria-modal="true" aria-label="Folders and notes drawer">
           {/* Dimmed backdrop */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -684,7 +764,7 @@ export function NotesView() {
 
           {/* Drawer content */}
           <aside
-            className="relative z-10 flex h-full w-[310px] max-w-[86vw] flex-col border-r bg-[var(--panel)] shadow-2xl transition-transform animate-in slide-in-from-left duration-250 select-none"
+            className="relative z-10 flex h-full w-[310px] max-w-[86vw] flex-col border-r bg-[var(--panel)] shadow-2xl transition-transform animate-in slide-in-from-left duration-250 select-none overscroll-contain"
             style={{
               borderColor: "var(--line)",
               paddingTop: "max(calc(var(--safe-top) + 8px), 16px)",
@@ -714,12 +794,12 @@ export function NotesView() {
             </div>
 
             {/* Folders List in Drawer */}
-            <div className="border-b border-[var(--line)] shrink-0 max-h-[160px] overflow-y-auto">
+            <div className="border-b border-[var(--line)] shrink-0 max-h-[190px] overflow-y-auto overscroll-contain">
               {foldersContent}
             </div>
 
             {/* Notes List in Drawer */}
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col overscroll-contain">
               {notesListContent}
             </div>
           </aside>
@@ -732,6 +812,52 @@ export function NotesView() {
           {editor(false)}
         </div>
       </div>
+
+      {/* Rename / Edit Folder Modal */}
+      <Modal
+        open={!!editingFolder}
+        onClose={() => setEditingFolder(null)}
+        title="Rename Folder"
+        width={380}
+        footer={
+          <div className="flex items-center justify-between w-full">
+            {editingFolder && editingFolder.id !== "f-daily" && (
+              <Btn
+                variant="danger"
+                size="sm"
+                onClick={() => {
+                  const id = editingFolder.id;
+                  setEditingFolder(null);
+                  deleteFolder(id);
+                }}
+              >
+                <Trash2 size={13} /> Delete
+              </Btn>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <Btn variant="ghost" size="sm" onClick={() => setEditingFolder(null)}>
+                Cancel
+              </Btn>
+              <Btn variant="primary" size="sm" onClick={saveFolderEdit}>
+                Save
+              </Btn>
+            </div>
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-2 py-1">
+          <label className="text-xs font-bold text-[var(--mut)] uppercase tracking-wider">
+            Folder Name
+          </label>
+          <TextInput
+            autoFocus
+            value={editingFolder?.name ?? ""}
+            onChange={(e) => setEditingFolder((prev) => (prev ? { ...prev, name: e.target.value } : null))}
+            onKeyDown={(e) => e.key === "Enter" && saveFolderEdit()}
+            placeholder="Folder name"
+          />
+        </div>
+      </Modal>
 
       {/* Pop-out fullscreen editor */}
       <Modal open={popped} onClose={() => setPopped(false)} title={selNote?.title ?? "Note"} width={1080}>

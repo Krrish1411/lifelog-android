@@ -362,7 +362,7 @@ export function TaskDialog() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <Labeled label="Project">
             <div className="flex flex-col gap-2">
               <select className="inp" value={newProject ? "__new" : projectId} onChange={(e) => { setNewProject(e.target.value === "__new"); if (e.target.value !== "__new") setProjectId(e.target.value); }}>
@@ -385,7 +385,7 @@ export function TaskDialog() {
           </Labeled>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col sm:grid sm:grid-cols-2 gap-3 sm:gap-4">
           <Labeled label="Priority">
             <Seg
               options={[
@@ -398,7 +398,7 @@ export function TaskDialog() {
               onChange={setPriority}
             />
           </Labeled>
-          <Labeled label="Estimate" hint="minutes, feeds calibration">
+          <Labeled label="Estimate (minutes)" hint="feeds calibration">
             <TextInput type="number" min={0} step={5} value={estimate} onChange={(e) => setEstimate(e.target.value)} />
           </Labeled>
         </div>
@@ -408,49 +408,55 @@ export function TaskDialog() {
         </Labeled>
 
         {/* Standard Due Date & Time */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Labeled label="Due date">
             <TextInput type="date" value={due} onChange={(e) => setDue(e.target.value)} />
           </Labeled>
-          <Labeled label="Time block" hint="start">
-            <TextInput type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} disabled={!due} />
-          </Labeled>
-          <Labeled label="Block length" hint="min">
-            <TextInput type="number" min={15} step={15} value={duration} onChange={(e) => setDuration(e.target.value)} disabled={!dueTime} />
-          </Labeled>
+          <div className="grid grid-cols-2 gap-2 sm:contents">
+            <Labeled label="Time block" hint="start">
+              <TextInput type="time" value={dueTime} onChange={(e) => setDueTime(e.target.value)} disabled={!due} />
+            </Labeled>
+            <Labeled label="Block length" hint="min">
+              <TextInput type="number" min={15} step={15} value={duration} onChange={(e) => setDuration(e.target.value)} disabled={!dueTime} />
+            </Labeled>
+          </div>
         </div>
 
         {/* Multi-Block Calendar Scheduling */}
-        <div className="rounded-xl border p-3.5 space-y-3" style={{ borderColor: "var(--line)", background: "var(--panel2)" }}>
-          <div className="flex items-center justify-between">
+        <div className="rounded-xl border p-3 sm:p-3.5 space-y-3" style={{ borderColor: "var(--line)", background: "var(--panel2)" }}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-accent" />
+              <Layers className="w-4 h-4 text-accent shrink-0" />
               <span className="text-[13px] font-bold text-[var(--color-text)]">
                 Calendar Time Blocks ({timeBlocks.length})
               </span>
             </div>
             <span className="text-xs text-[var(--color-mut)]">
-              For large tasks (e.g. 600m), schedule across multiple days/slots
+              Split large tasks across multiple days or slots
             </span>
           </div>
 
           {/* Quick Generator */}
-          <div className="flex items-center gap-2 flex-wrap text-xs pt-1">
-            <span className="text-[var(--color-mut)] font-medium">Split estimate into:</span>
-            <Btn size="sm" variant="ghost" onClick={() => generateBlocks(60)}>60m blocks</Btn>
-            <Btn size="sm" variant="ghost" onClick={() => generateBlocks(90)}>90m blocks</Btn>
-            <Btn size="sm" variant="ghost" onClick={() => generateBlocks(120)}>120m blocks</Btn>
-            <div className="flex items-center gap-1.5 ml-auto">
-              <TextInput
-                type="number"
-                min={15}
-                step={15}
-                className="w-16 h-7 text-xs"
-                value={String(splitChunkMin)}
-                onChange={(e) => setSplitChunkMin(parseInt(e.target.value, 10) || 60)}
-              />
-              <Btn size="sm" variant="ghost" onClick={() => generateBlocks(splitChunkMin)}>Custom</Btn>
-              <Btn size="sm" variant="primary" onClick={addTimeBlock}>
+          <div className="flex flex-col gap-2 pt-1 text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[var(--color-mut)] font-medium mr-1">Split estimate into:</span>
+              <Btn size="sm" variant="ghost" onClick={() => generateBlocks(60)}>60m</Btn>
+              <Btn size="sm" variant="ghost" onClick={() => generateBlocks(90)}>90m</Btn>
+              <Btn size="sm" variant="ghost" onClick={() => generateBlocks(120)}>120m</Btn>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1">
+                <TextInput
+                  type="number"
+                  min={15}
+                  step={15}
+                  className="w-20 h-8 text-xs"
+                  value={String(splitChunkMin)}
+                  onChange={(e) => setSplitChunkMin(parseInt(e.target.value, 10) || 60)}
+                />
+                <Btn size="sm" variant="ghost" onClick={() => generateBlocks(splitChunkMin)}>Custom</Btn>
+              </div>
+              <Btn size="sm" variant="primary" onClick={addTimeBlock} className="ml-auto">
                 <Plus size={12} /> Add Block
               </Btn>
             </div>
@@ -458,53 +464,64 @@ export function TaskDialog() {
 
           {/* Blocks List */}
           {timeBlocks.length > 0 && (
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {timeBlocks.map((block, idx) => (
                 <div
                   key={block.id}
-                  className="flex items-center gap-2 p-2 rounded-lg border bg-[var(--panel)]"
+                  className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-lg border bg-[var(--panel)]"
                   style={{ borderColor: "var(--line)" }}
                 >
-                  <span className="text-xs font-mono font-bold text-[var(--color-mut)] w-5 shrink-0">
-                    #{idx + 1}
-                  </span>
-                  <input
-                    type="text"
-                    value={block.label ?? `Block ${idx + 1}`}
-                    onChange={(e) => updateTimeBlock(block.id, { label: e.target.value })}
-                    placeholder="Block label"
-                    className="inp flex-1 h-7 text-xs"
-                  />
-                  <input
-                    type="date"
-                    value={block.date ?? ""}
-                    onChange={(e) => updateTimeBlock(block.id, { date: e.target.value || null })}
-                    className="inp w-32 h-7 text-xs"
-                  />
-                  <input
-                    type="time"
-                    value={block.time ?? ""}
-                    onChange={(e) => updateTimeBlock(block.id, { time: e.target.value || null })}
-                    className="inp w-24 h-7 text-xs"
-                  />
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-2 w-full sm:flex-1">
+                    <span className="text-xs font-mono font-bold text-[var(--color-mut)] w-5 shrink-0">
+                      #{idx + 1}
+                    </span>
                     <input
-                      type="number"
-                      min={15}
-                      step={15}
-                      value={block.durationMin}
-                      onChange={(e) => updateTimeBlock(block.id, { durationMin: parseInt(e.target.value, 10) || 30 })}
-                      className="inp w-16 h-7 text-xs text-center"
+                      type="text"
+                      value={block.label ?? `Block ${idx + 1}`}
+                      onChange={(e) => updateTimeBlock(block.id, { label: e.target.value })}
+                      placeholder="Block label"
+                      className="inp flex-1 h-8 text-xs"
                     />
-                    <span className="text-xs text-[var(--color-mut)]">m</span>
+                    <button
+                      onClick={() => removeTimeBlock(block.id)}
+                      className="sm:hidden text-[var(--color-mut)] hover:text-red-500 p-1 cursor-pointer"
+                      title="Remove block"
+                    >
+                      <X size={15} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeTimeBlock(block.id)}
-                    className="text-[var(--color-mut)] hover:text-red-500 p-1 cursor-pointer"
-                    title="Remove block"
-                  >
-                    <X size={13} />
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <input
+                      type="date"
+                      value={block.date ?? ""}
+                      onChange={(e) => updateTimeBlock(block.id, { date: e.target.value || null })}
+                      className="inp flex-1 sm:w-32 h-8 text-xs"
+                    />
+                    <input
+                      type="time"
+                      value={block.time ?? ""}
+                      onChange={(e) => updateTimeBlock(block.id, { time: e.target.value || null })}
+                      className="inp w-24 h-8 text-xs"
+                    />
+                    <div className="flex items-center gap-1 shrink-0">
+                      <input
+                        type="number"
+                        min={15}
+                        step={15}
+                        value={block.durationMin}
+                        onChange={(e) => updateTimeBlock(block.id, { durationMin: parseInt(e.target.value, 10) || 30 })}
+                        className="inp w-16 h-8 text-xs text-center"
+                      />
+                      <span className="text-xs text-[var(--color-mut)]">m</span>
+                    </div>
+                    <button
+                      onClick={() => removeTimeBlock(block.id)}
+                      className="hidden sm:inline-block text-[var(--color-mut)] hover:text-red-500 p-1 cursor-pointer"
+                      title="Remove block"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -625,16 +642,26 @@ export function TaskDialog() {
 
         {/* Snooze */}
         <div className="rounded-xl border p-3" style={{ borderColor: "var(--line)" }}>
-          <div className="flex items-center justify-between">
-            <span className="lbl mb-0">Snooze until</span>
-            <div className="flex gap-1.5">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="lbl mb-0 font-bold text-xs">Snooze until</span>
+              {snooze && (
+                <button
+                  type="button"
+                  onClick={() => setSnooze("")}
+                  className="text-xs text-[var(--danger)] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <X size={12} /> Clear
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
               <Btn size="sm" variant="ghost" onClick={() => quickSnooze(Date.now() + 3600000)}>+1h</Btn>
               <Btn size="sm" variant="ghost" onClick={() => quickSnooze(tonight())}>Tonight 20:00</Btn>
               <Btn size="sm" variant="ghost" onClick={() => quickSnooze(tomorrow9())}>Tomorrow 09:00</Btn>
-              {snooze && <Btn size="sm" variant="danger" onClick={() => setSnooze("")}><X size={11} /> Clear</Btn>}
             </div>
           </div>
-          <div className="mt-2">
+          <div className="mt-2.5">
             <TextInput type="datetime-local" value={snooze} onChange={(e) => setSnooze(e.target.value)} />
           </div>
         </div>
