@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Web Build Output
+dist/
+build/
+
+# Android build & local settings
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android/.idea/
+*.iml
+
+# Environment & Logs
+.env
+.env.local
+*.log
+
+# OS metadata
+.DS_Store
+Thumbs.db
