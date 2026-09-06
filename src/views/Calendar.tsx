@@ -329,7 +329,9 @@ export function CalendarView() {
                 key={iso}
                 className={cn(
                   "card p-3 w-full min-w-0 flex flex-col gap-2 transition-all",
-                  isToday && "ring-1 ring-[var(--accent)]"
+                  isToday
+                    ? "!border-[var(--accent)] border-[1.5px] border-l-[5px] !border-l-[var(--accent)] shadow-md shadow-[var(--accent)]/15"
+                    : ""
                 )}
               >
                 <div
@@ -688,11 +690,11 @@ export function CalendarView() {
         busyNow={busyNow?.title ?? null}
       />
       <Tray unscheduled={unscheduled} />
-      <div className="card overflow-x-auto w-full max-w-full scrollbar-none">
-        <div className="flex min-w-[640px]">
+      <div className={cn("card w-full max-w-full scrollbar-none", view === "day" ? "overflow-x-hidden" : "overflow-x-auto")}>
+        <div className={cn("flex w-full", view === "day" ? "min-w-0" : view === "3day" ? "min-w-[480px]" : "min-w-[640px]")}>
           {/* gutter */}
           <div
-            className="relative w-[52px] shrink-0 border-r"
+            className="relative w-[50px] shrink-0 border-r"
             style={{ borderColor: "var(--line)", height: GRID_H + 34 }}
           >
             <div className="h-[34px]" />
@@ -715,7 +717,10 @@ export function CalendarView() {
             return (
               <div
                 key={iso}
-                className="relative min-w-[150px] flex-1 border-r"
+                className={cn(
+                  "relative flex-1 border-r last:border-r-0",
+                  view === "day" ? "min-w-0 w-full" : "min-w-[150px]"
+                )}
                 style={{ borderColor: "var(--line)" }}
               >
                 {/* day header */}

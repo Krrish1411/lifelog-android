@@ -321,29 +321,47 @@ export function ReportsView() {
                 {weeklyTrend[7].active}/7 active days this week
               </span>
             </div>
-            <div className="mt-4 flex h-[130px] items-end gap-2">
+            {/* Weekly trend chart with fixed baseline */}
+            <div className="mt-4 flex h-[92px] w-full items-end gap-1.5 sm:gap-2 border-b border-[var(--line)] pb-0.5">
               {weeklyTrend.map((wk, i) => {
                 const isCur = i === weeklyTrend.length - 1;
                 const max = Math.max(1, ...weeklyTrend.map((x) => x.min));
-                const d = parseIso(wk.ws);
                 return (
                   <div
                     key={wk.ws}
-                    className="group flex h-full flex-1 cursor-default flex-col items-center gap-1.5"
+                    className="group relative flex h-full flex-1 items-end justify-center cursor-default"
                     title={`${fmtDayShort(wk.ws)} week — ${fmtDur(wk.min)} focused · ${wk.done} completed · ${wk.active} active day(s)`}
                   >
-                    <div className="flex w-full flex-1 items-end">
-                      <div
-                        className="w-full rounded-t-lg transition-all duration-500 group-hover:brightness-125"
-                        style={{
-                          height: `${Math.max(4, (wk.min / max) * 100)}%`,
-                          background: isCur ? "var(--accent)" : "color-mix(in srgb, var(--accent) 40%, var(--panel2))",
-                          boxShadow: isCur ? "0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent)" : undefined,
-                        }}
-                      />
-                    </div>
-                    <span className="text-[9px] font-bold tnum" style={{ color: isCur ? "var(--accent)" : "var(--mut)" }}>
-                      {MONTHS[d.getMonth()].slice(0, 3)} {d.getDate()}
+                    <div
+                      className="w-full max-w-[28px] rounded-t-md transition-all duration-300 group-hover:brightness-125"
+                      style={{
+                        height: wk.min > 0 ? `${Math.max(8, (wk.min / max) * 100)}%` : "3px",
+                        background: isCur
+                          ? "var(--accent)"
+                          : wk.min > 0
+                          ? "color-mix(in srgb, var(--accent) 45%, var(--panel2))"
+                          : "var(--panel2)",
+                        boxShadow: isCur && wk.min > 0 ? "0 0 10px -2px var(--accent)" : undefined,
+                        opacity: wk.min > 0 || isCur ? 1 : 0.6,
+                      }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Uniform date labels beneath baseline */}
+            <div className="mt-1.5 flex items-start justify-between gap-1.5 sm:gap-2 w-full select-none">
+              {weeklyTrend.map((wk, i) => {
+                const isCur = i === weeklyTrend.length - 1;
+                const d = parseIso(wk.ws);
+                return (
+                  <div key={wk.ws} className="flex flex-1 flex-col items-center justify-start text-center">
+                    <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: isCur ? "var(--accent)" : "var(--mut)" }}>
+                      {MONTHS[d.getMonth()].slice(0, 3)}
+                    </span>
+                    <span className="text-[9.5px] font-extrabold tnum -mt-0.5" style={{ color: isCur ? "var(--accent)" : "var(--text)" }}>
+                      {d.getDate()}
                     </span>
                   </div>
                 );

@@ -79,12 +79,6 @@ export const MobileMoreSheet: React.FC<MobileMoreSheetProps> = ({
         <div className="flex items-center justify-between pb-3 border-b border-[var(--line)]">
           <div className="flex items-center gap-2">
             <span className="font-display text-[17px] font-bold tracking-tight">LifeLog Hub</span>
-            <span
-              className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
-              style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
-            >
-              Android
-            </span>
           </div>
           <button
             type="button"

@@ -142,27 +142,28 @@ function hashStringToInt(str: string): number {
 export async function initNotificationChannels(): Promise<void> {
   if (!isNative) return;
   try {
-    // Delete legacy channels that lacked valid raw audio resources
+    // Delete custom sound channels so Android applies native OS default notification sound
     try {
       await LocalNotifications.deleteChannel({ id: "focus-timer" });
       await LocalNotifications.deleteChannel({ id: "task-reminders" });
+      await LocalNotifications.deleteChannel({ id: "focus-timer-v2" });
+      await LocalNotifications.deleteChannel({ id: "task-reminders-v2" });
     } catch {}
 
+    // Android Notification Channels without custom sound play the system OS notification sound
     await LocalNotifications.createChannel({
-      id: "focus-timer-v2",
+      id: "focus-channel-os",
       name: "Focus & Pomodoro Timer",
-      description: "Audible alarms when Pomodoro, Countdown, or Break sessions finish",
+      description: "Alerts when Pomodoro, Countdown, or Break sessions finish",
       importance: 5, // High priority / Heads-up
-      sound: "lifelog_bell.wav",
       visibility: 1,
       vibration: true,
     });
     await LocalNotifications.createChannel({
-      id: "task-reminders-v2",
+      id: "task-channel-os",
       name: "Task Due Alarms",
-      description: "Audible alarms for upcoming and scheduled tasks",
+      description: "Alerts for upcoming and scheduled tasks",
       importance: 5,
-      sound: "lifelog_bell.wav",
       visibility: 1,
       vibration: true,
     });
@@ -233,8 +234,7 @@ export async function scheduleTaskDueNotification(
             title: leadMinutes > 0 ? `Task Due in ${leadMinutes}m ⏱️` : "Task Due Now ⏱️",
             body: task.title,
             schedule: { at: new Date(targetTime), allowWhileIdle: true },
-            channelId: "task-reminders-v2",
-            sound: "lifelog_bell.wav",
+            channelId: "task-channel-os",
           },
         ],
       });
@@ -282,8 +282,7 @@ export async function scheduleTimerEndNotification(
             ? `Completed: "${title}". Great job! Tap to review.`
             : "Session ended. Time to stretch or start your next block.",
           schedule: { at: targetDate, allowWhileIdle: true },
-          channelId: "focus-timer-v2",
-          sound: "lifelog_bell.wav",
+          channelId: "focus-channel-os",
         },
       ],
     });
@@ -310,7 +309,6 @@ export async function cancelTimerEndNotification(): Promise<void> {
  * Send an immediate test notification with sound, haptics, and notification shade display.
  */
 export async function sendNativeTestNotification(): Promise<void> {
-  playChimeSound();
   await triggerHaptic("success");
 
   if (isNative) {
@@ -321,8 +319,7 @@ export async function sendNativeTestNotification(): Promise<void> {
           title: "LifeLog Notification 🚀",
           body: "Native Android notifications are active! Alarms will fire even when the app is closed.",
           schedule: { at: new Date(Date.now() + 500), allowWhileIdle: true },
-          channelId: "task-reminders-v2",
-          sound: "lifelog_bell.wav",
+          channelId: "task-channel-os",
         },
       ],
     });
