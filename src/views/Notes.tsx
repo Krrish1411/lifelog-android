@@ -255,7 +255,7 @@ export function NotesView() {
   const prefix = (p: string) => { if (taRef.current) applyLinePrefix(taRef.current, p, (v) => { setDraft((d) => ({ ...d, text: v })); dirty.current = true; }); };
 
   const toolbar = (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className="flex items-center gap-1 overflow-x-auto scrollbar-none py-1 flex-nowrap w-full min-w-0">
       {mdBtn("Heading 1", <Heading1 size={13} />, () => prefix("# "))}
       {mdBtn("Heading 2", <Heading2 size={13} />, () => prefix("## "))}
       {mdBtn("Bold", <Bold size={13} />, () => wrap("**", "**"))}
@@ -270,14 +270,16 @@ export function NotesView() {
       {mdBtn("Checklist", <ListTodo size={13} />, () => prefix("- [ ] "))}
       {mdBtn("Link", <Link2 size={13} />, () => wrap("[", "](https://)"))}
       {mdBtn("Divider", <Minus size={13} />, () => { setDraft((d) => ({ ...d, text: `${d.text}\n---\n` })); dirty.current = true; })}
-      <span className="mx-1 h-5 w-px" style={{ background: "var(--line)" }} />
-      <Seg size="sm" options={[{ value: "write", label: "Write" }, { value: "preview", label: "Preview" }]} value={preview} onChange={setPreview} />
+      <span className="mx-1 h-5 w-px shrink-0" style={{ background: "var(--line)" }} />
+      <div className="shrink-0">
+        <Seg size="sm" options={[{ value: "write", label: "Write" }, { value: "preview", label: "Preview" }]} value={preview} onChange={setPreview} />
+      </div>
     </div>
   );
 
   const attachmentsBar = (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <label className="flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] font-bold transition-all hover:scale-[1.03]"
+    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 flex-nowrap w-full min-w-0">
+      <label className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border px-2 text-[11px] font-bold transition-all hover:scale-[1.03]"
         style={{ borderColor: "var(--line)", background: "var(--bg)", color: "var(--mut)" }}>
         <ImageIcon size={12} /> Photo
         <input type="file" accept="image/*" className="hidden" onChange={(e) => { onMediaFile(e.target.files?.[0], "image"); e.target.value = ""; }} />

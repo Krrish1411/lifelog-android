@@ -324,7 +324,10 @@ export function FocusView() {
           }}
         />
         {/* top bar */}
-        <div className="relative flex items-center justify-between px-6 py-4">
+        <div
+          className="relative flex items-center justify-between px-4 sm:px-6 py-4"
+          style={{ paddingTop: "max(var(--safe-top, 44px), 16px)" }}
+        >
           <Btn
             variant="outline"
             onClick={() => setStage(false)}
@@ -350,29 +353,29 @@ export function FocusView() {
           </span>
         </div>
 
-        <div className="relative mx-auto flex w-full max-w-[620px] flex-1 flex-col items-center justify-center gap-6 px-6 pb-10">
+        <div className="relative mx-auto flex w-full max-w-[620px] flex-1 flex-col items-center justify-center gap-6 px-4 sm:px-6 pb-10 min-w-0">
           {/* task card */}
           {task ? (
             <div
-              className="pop flex w-full items-center gap-3 rounded-2xl border px-4 py-3"
+              className="pop flex w-full items-center gap-3 rounded-2xl border px-4 py-3 min-w-0"
               style={{ borderColor: "var(--line)", background: "var(--panel)" }}
             >
-              <span className="text-[24px]">{task.emoji ?? "▸"}</span>
+              <span className="text-[24px] shrink-0">{task.emoji ?? "▸"}</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[16px] font-bold">{task.title}</div>
                 <div
                   className="mt-0.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold"
                   style={{ color: "var(--mut)" }}
                 >
-                  <span className="inline-flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1 truncate max-w-[140px]">
                     <span
-                      className="h-[8px] w-[8px] rounded-full"
+                      className="h-[8px] w-[8px] rounded-full shrink-0"
                       style={{ background: proj?.color }}
                     />
-                    {proj?.name}
+                    <span className="truncate">{proj?.name}</span>
                   </span>
                   {live.subtaskId && (
-                    <span>
+                    <span className="truncate max-w-[120px]">
                       step: {task.subtasks.find((s) => s.id === live.subtaskId)?.title}
                     </span>
                   )}
@@ -387,8 +390,8 @@ export function FocusView() {
           )}
 
           {/* ring + digits */}
-          <div className="relative">
-            <svg width={300} height={300} viewBox="0 0 300 300" className="rotate-[-90deg]">
+          <div className="relative flex items-center justify-center max-w-[75vw] max-h-[75vw]">
+            <svg width={300} height={300} viewBox="0 0 300 300" className="rotate-[-90deg] w-full h-full max-w-[280px] max-h-[280px]">
               <circle cx="150" cy="150" r={R} fill="none" stroke="var(--line)" strokeWidth="10" />
               <circle
                 cx="150"
@@ -406,7 +409,7 @@ export function FocusView() {
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <div
                 className={cn("stage-num font-mono font-bold", paused && "opacity-60")}
-                style={{ fontSize: 58, color: "var(--text)" }}
+                style={{ fontSize: 54, color: "var(--text)" }}
               >
                 {big}
               </div>
@@ -420,7 +423,7 @@ export function FocusView() {
           </div>
 
           {/* controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-3">
             <Btn
               variant={paused ? "primary" : "soft"}
               size="lg"

@@ -320,20 +320,23 @@ export function Shell() {
         }}
       >
         <div className="flex h-14 items-center justify-between px-3.5">
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic("light");
-                setMobileNavOpen(true);
-              }}
-              className="rounded-xl p-2 transition-colors hover:bg-[var(--panel2)] active:scale-95 cursor-pointer text-[var(--text)]"
-              aria-label="Open navigation drawer"
-            >
-              <Menu size={20} />
-            </button>
+          <div className="flex items-center gap-2 min-w-0">
+            {view === "tasks" && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic("light");
+                  setMobileNavOpen(true);
+                }}
+                className="rounded-xl p-2 transition-colors hover:bg-[var(--panel2)] active:scale-95 cursor-pointer text-[var(--text)] shrink-0"
+                title="Task filters & projects"
+                aria-label="Open task filters"
+              >
+                <Menu size={20} />
+              </button>
+            )}
             <Logo small />
-            <span className="font-display text-[16px] font-bold truncate max-w-[140px] sm:max-w-[220px] text-[var(--text)]">
+            <span className="font-display text-[16px] font-bold truncate max-w-[150px] sm:max-w-[220px] text-[var(--text)]">
               {activeNavLabel}
             </span>
           </div>
@@ -403,13 +406,13 @@ export function Shell() {
 
       {/* 3. Main Screen Viewport (with top & bottom safe insets padding) */}
       <main
-        className="zoomable min-h-screen w-full max-w-full overflow-x-hidden px-3.5 sm:px-5"
+        className="zoomable min-h-screen w-full max-w-full min-w-0 overflow-x-hidden px-3.5 sm:px-5"
         style={{
           paddingTop: "calc(58px + var(--safe-top))",
           paddingBottom: "calc(76px + var(--safe-bottom))",
         }}
       >
-        <div className="w-full max-w-full">{views[view]}</div>
+        <div className="w-full max-w-full min-w-0">{views[view]}</div>
       </main>
 
       {/* 4. Global Overlays & Mini Timer */}

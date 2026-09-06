@@ -7,15 +7,8 @@ import {
   ChevronDown,
   ChevronRight,
   Flame,
-  LayoutDashboard,
-  Timer,
-  Calendar,
-  FileText,
-  Activity,
-  BarChart3,
-  Settings as SettingsIcon,
   X,
-  Sparkles,
+  CheckSquare,
 } from "lucide-react";
 import type { Priority, ViewId } from "../types";
 import { useApp } from "../store";
@@ -25,8 +18,8 @@ import { cn } from "./ui";
 interface MobileDrawerProps {
   open: boolean;
   onClose: () => void;
-  currentView: ViewId;
-  onSelectView: (view: ViewId) => void;
+  currentView?: ViewId;
+  onSelectView?: (view: ViewId) => void;
   onSelectTaskFilter?: (filter: "inbox" | "today" | "all" | { project: string } | { tag: string } | { priority: Priority }) => void;
   selectedTaskFilter?: string; // string key e.g. "inbox", "today", "all", "p:id", "t:tag", "pr:priority"
   onNewProject?: () => void;
@@ -60,40 +53,34 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   const handleSmartView = (filterKey: "inbox" | "today" | "all") => {
     triggerHaptic("light");
-    onSelectView("tasks");
+    onSelectView?.("tasks");
     onSelectTaskFilter?.(filterKey);
     onClose();
   };
 
   const handleProjectClick = (projectId: string) => {
     triggerHaptic("light");
-    onSelectView("tasks");
+    onSelectView?.("tasks");
     onSelectTaskFilter?.({ project: projectId });
     onClose();
   };
 
   const handleTagClick = (tag: string) => {
     triggerHaptic("light");
-    onSelectView("tasks");
+    onSelectView?.("tasks");
     onSelectTaskFilter?.({ tag });
     onClose();
   };
 
   const handlePriorityClick = (priority: Priority) => {
     triggerHaptic("light");
-    onSelectView("tasks");
+    onSelectView?.("tasks");
     onSelectTaskFilter?.({ priority });
     onClose();
   };
 
-  const handleAppView = (view: ViewId) => {
-    triggerHaptic("light");
-    onSelectView(view);
-    onClose();
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Navigation drawer">
+    <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Task navigation drawer">
       {/* Dimmed touch backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -102,10 +89,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
       {/* Drawer content panel */}
       <aside
-        className="relative z-10 flex h-full w-[300px] max-w-[85vw] flex-col border-r bg-[var(--panel)] shadow-2xl transition-transform animate-in slide-in-from-left duration-250 select-none"
+        className="relative z-10 flex h-full w-[290px] max-w-[85vw] flex-col border-r bg-[var(--panel)] shadow-2xl transition-transform animate-in slide-in-from-left duration-250 select-none"
         style={{
           borderColor: "var(--line)",
-          paddingTop: "max(calc(var(--safe-top) + 10px), 16px)",
+          paddingTop: "max(calc(var(--safe-top) + 8px), 16px)",
           paddingBottom: "max(var(--safe-bottom), 16px)",
         }}
         onClick={(e) => e.stopPropagation()}
@@ -117,18 +104,18 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               className="flex h-9 w-9 items-center justify-center rounded-xl font-bold shadow-xs text-white"
               style={{ background: "var(--accent)" }}
             >
-              <Sparkles size={18} />
+              <CheckSquare size={18} />
             </div>
             <div>
-              <div className="font-display text-[16px] font-bold tracking-tight text-[var(--text)]">
-                {state.settings.profileName.trim() || "LifeLog"}
+              <div className="font-display text-[15px] font-bold tracking-tight text-[var(--text)]">
+                Tasks & Projects
               </div>
               <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--mut)]">
-                <span>Android Vault</span>
-                <span>•</span>
                 <span className="flex items-center gap-0.5 text-[var(--accent)] font-bold">
                   <Flame size={11} /> {openTasks.length} open
                 </span>
+                <span>•</span>
+                <span>{state.projects.length} projects</span>
               </div>
             </div>
           </div>
@@ -372,111 +359,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               </div>
             )}
           </div>
-
-          <div className="my-2 border-t" style={{ borderColor: "var(--line)" }} />
-
-          {/* Section 5: App Views */}
-          <div className="space-y-0.5">
-            <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--mut)]">
-              App Features
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleAppView("dashboard")}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13.5px] font-bold transition-all cursor-pointer text-left",
-                currentView === "dashboard"
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--text)] hover:bg-[var(--panel2)]"
-              )}
-            >
-              <LayoutDashboard size={17} className={currentView === "dashboard" ? "text-[var(--accent)]" : "text-[var(--mut)]"} />
-              <span className="flex-1">Today Dashboard</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleAppView("focus")}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13.5px] font-bold transition-all cursor-pointer text-left",
-                currentView === "focus"
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--text)] hover:bg-[var(--panel2)]"
-              )}
-            >
-              <Timer size={17} className={currentView === "focus" ? "text-[var(--accent)]" : "text-[var(--mut)]"} />
-              <span className="flex-1">Focus Timer</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleAppView("calendar")}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13.5px] font-bold transition-all cursor-pointer text-left",
-                currentView === "calendar"
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--text)] hover:bg-[var(--panel2)]"
-              )}
-            >
-              <Calendar size={17} className={currentView === "calendar" ? "text-[var(--accent)]" : "text-[var(--mut)]"} />
-              <span className="flex-1">Calendar Planner</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleAppView("notes")}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13.5px] font-bold transition-all cursor-pointer text-left",
-                currentView === "notes"
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--text)] hover:bg-[var(--panel2)]"
-              )}
-            >
-              <FileText size={17} className={currentView === "notes" ? "text-[var(--accent)]" : "text-[var(--mut)]"} />
-              <span className="flex-1">Encrypted Notes</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleAppView("habits")}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13.5px] font-bold transition-all cursor-pointer text-left",
-                currentView === "habits"
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--text)] hover:bg-[var(--panel2)]"
-              )}
-            >
-              <Activity size={17} className={currentView === "habits" ? "text-[var(--accent)]" : "text-[var(--mut)]"} />
-              <span className="flex-1">Habit Streaks</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleAppView("reports")}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-[13.5px] font-bold transition-all cursor-pointer text-left",
-                currentView === "reports"
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--text)] hover:bg-[var(--panel2)]"
-              )}
-            >
-              <BarChart3 size={17} className={currentView === "reports" ? "text-[var(--accent)]" : "text-[var(--mut)]"} />
-              <span className="flex-1">Reports & Analytics</span>
-            </button>
-          </div>
         </div>
 
-        {/* Drawer Bottom Bar: Settings & Quick Add */}
-        <div className="border-t p-3 space-y-2" style={{ borderColor: "var(--line)", background: "var(--panel2)" }}>
-          <button
-            type="button"
-            onClick={() => handleAppView("settings")}
-            className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-[13px] font-bold text-[var(--text)] hover:bg-[var(--panel)] transition-colors cursor-pointer"
-          >
-            <SettingsIcon size={16} className="text-[var(--mut)]" />
-            <span>Settings & Themes</span>
-          </button>
+        {/* Drawer Bottom Bar: Quick Create Task */}
+        <div className="border-t p-3" style={{ borderColor: "var(--line)", background: "var(--panel2)" }}>
           <button
             type="button"
             onClick={() => {
