@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import type { ViewId } from "../types";
 import { triggerHaptic } from "../utils/native";
+import { useBodyScrollLock } from "../utils/scrollLock";
 
 interface MobileMoreSheetProps {
   open: boolean;
@@ -44,6 +45,8 @@ export const MobileMoreSheet: React.FC<MobileMoreSheetProps> = ({
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
+
+  useBodyScrollLock(open);
 
   if (!open) return null;
 

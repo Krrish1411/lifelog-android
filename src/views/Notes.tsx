@@ -12,6 +12,7 @@ import { decryptText, encryptText, getDeviceKey } from "../utils/crypto";
 import { fmtClock, fmtDayShort, fmtNoteName, todayIso, uid } from "../utils/core";
 import { applyLinePrefix, applyWrap, renderMarkdown } from "../utils/markdown";
 import { consumeDailyNote } from "../utils/nav";
+import { useBodyScrollLock } from "../utils/scrollLock";
 import { Btn, EmptyState, Modal, SearchInput, Seg, TextInput, cn } from "../components/ui";
 
 interface Draft { title: string; text: string }
@@ -38,14 +39,7 @@ export function NotesView() {
   const [editingFolder, setEditingFolder] = useState<{ id: string; name: string } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  useEffect(() => {
-    if (!drawerOpen) return;
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [drawerOpen]);
+  useBodyScrollLock(drawerOpen);
   const [popped, setPopped] = useState(false);
   const [preview, setPreview] = useState<"write" | "preview">("write");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");

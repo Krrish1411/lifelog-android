@@ -16,6 +16,7 @@ import type { Priority, Project, ViewId } from "../types";
 import { useApp } from "../store";
 import { triggerHaptic } from "../utils/native";
 import { normalizeHex } from "../utils/core";
+import { useBodyScrollLock } from "../utils/scrollLock";
 import { Btn, ColorPicker, EmojiPicker, Labeled, Modal, TextInput, cn } from "./ui";
 
 interface MobileDrawerProps {
@@ -53,14 +54,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   const [tagName, setTagName] = useState("");
   const [tagColor, setTagColor] = useState("#e8a33d");
 
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
+  useBodyScrollLock(open);
 
   if (!open) return null;
 

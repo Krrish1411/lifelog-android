@@ -3,6 +3,7 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react
 import { Plus, Search, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { normalizeHex } from "../utils/core";
+import { useBodyScrollLock } from "../utils/scrollLock";
 
 export function cn(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
@@ -70,13 +71,11 @@ export function Modal({
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", h);
-      document.body.style.overflow = prevOverflow;
-    };
+    return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
+
+  useBodyScrollLock(open);
+
   if (!open) return null;
   return (
     <div
