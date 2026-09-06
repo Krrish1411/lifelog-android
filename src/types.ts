@@ -212,6 +212,7 @@ export interface Meta {
   createdAt: number;
   lastGreetingDay: string | null;
   hasSeenWelcome?: boolean;
+  hasCompletedNamePrompt?: boolean;
 }
 
 export interface State {

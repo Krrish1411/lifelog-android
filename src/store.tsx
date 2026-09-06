@@ -141,6 +141,8 @@ function mergeState(raw: Partial<State>): State {
     meta: {
       createdAt: base.meta?.createdAt ?? Date.now(),
       lastGreetingDay: base.meta?.lastGreetingDay ?? null,
+      hasSeenWelcome: base.meta?.hasSeenWelcome ?? false,
+      hasCompletedNamePrompt: base.meta?.hasCompletedNamePrompt ?? false,
     },
   };
 }

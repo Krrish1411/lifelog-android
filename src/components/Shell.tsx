@@ -341,6 +341,20 @@ export function Shell() {
                 <Menu size={20} />
               </button>
             )}
+            {view === "notes" && (
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic("light");
+                  window.dispatchEvent(new CustomEvent("lifelog:open-notes-drawer"));
+                }}
+                className="rounded-xl p-2 transition-colors hover:bg-[var(--panel2)] active:scale-95 cursor-pointer text-[var(--text)] shrink-0"
+                title="Folders & Notes"
+                aria-label="Open folders and notes"
+              >
+                <Menu size={20} />
+              </button>
+            )}
             <Logo small />
             <span className="font-display text-[16px] font-bold truncate max-w-[150px] sm:max-w-[220px] text-[var(--text)]">
               {activeNavLabel}
@@ -563,9 +577,24 @@ function Overlays({
   onCloseDrawer?: () => void;
   onToggleTheme: () => void;
 }) {
-  const { state, view, setView, openTaskDialog, confirmReq, resolveConfirm, taskDialog, closeTaskDialog } = useApp();
+  const { state, set, toast, view, setView, openTaskDialog, confirmReq, resolveConfirm, taskDialog, closeTaskDialog } = useApp();
   const [confirmText, setConfirmText] = useState("");
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+  const [namePromptInput, setNamePromptInput] = useState(state.settings.profileName || "");
+  const showNamePrompt = Boolean(state.meta && state.meta.hasSeenWelcome && !state.meta.hasCompletedNamePrompt);
+
+  const submitNamePrompt = (skip = false) => {
+    const trimmed = skip ? "" : namePromptInput.trim();
+    set((s) => ({
+      ...s,
+      settings: trimmed ? { ...s.settings, profileName: trimmed } : s.settings,
+      meta: { ...s.meta, hasCompletedNamePrompt: true },
+    }));
+    triggerHaptic("success");
+    if (!skip && trimmed) {
+      toast(`Welcome to LifeLog, ${trimmed}! 👋`, "ok");
+    }
+  };
 
   // Android Native Hardware Back Button Handler
   useEffect(() => {
@@ -657,6 +686,52 @@ function Overlays({
           </div>
           <div className="text-[11px]" style={{ color: "var(--mut)" }}>
             Shows {state.settings.greeting === "every" ? "on every launch" : "on the first launch of each day"} · customize in Settings.
+          </div>
+        </div>
+      </Modal>
+
+      {/* First-Time User Name Prompt Modal */}
+      <Modal
+        open={showNamePrompt}
+        onClose={() => submitNamePrompt(true)}
+        title="Welcome to LifeLog"
+        width={440}
+        zIndex={90}
+      >
+        <div className="flex flex-col gap-4">
+          <div>
+            <div className="font-display text-[20px] font-bold tracking-tight">
+              What should LifeLog call you?
+            </div>
+            <p className="mt-1 text-[13px] leading-relaxed" style={{ color: "var(--mut)" }}>
+              Used to personalize your daily greetings, dashboard focus headers, and daily logs. You can change this anytime in Settings.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "var(--mut)" }}>
+              Your Name / Nickname
+            </label>
+            <TextInput
+              autoFocus
+              value={namePromptInput}
+              onChange={(e) => setNamePromptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  submitNamePrompt(false);
+                }
+              }}
+              placeholder="e.g. Krish Patel"
+            />
+          </div>
+
+          <div className="flex w-full justify-end gap-2 pt-2">
+            <Btn variant="ghost" onClick={() => submitNamePrompt(true)}>
+              Skip
+            </Btn>
+            <Btn variant="primary" onClick={() => submitNamePrompt(false)}>
+              Continue
+            </Btn>
           </div>
         </div>
       </Modal>

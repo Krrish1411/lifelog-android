@@ -68,6 +68,12 @@ export function NotesView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const handler = () => setDrawerOpen(true);
+    window.addEventListener("lifelog:open-notes-drawer", handler);
+    return () => window.removeEventListener("lifelog:open-notes-drawer", handler);
+  }, []);
+
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const selIdRef = useRef(selId);
@@ -497,7 +503,7 @@ export function NotesView() {
               <div className="flex items-center gap-2 min-w-0">
                 <button
                   onClick={() => setDrawerOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[var(--line)] bg-[var(--panel2)] hover:bg-[var(--panel)] transition-colors text-xs font-bold text-[var(--text)] shadow-xs shrink-0 cursor-pointer lg:hidden"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[var(--line)] bg-[var(--panel2)] hover:bg-[var(--panel)] transition-colors text-xs font-bold text-[var(--text)] shadow-xs shrink-0 cursor-pointer"
                   title="Open folders & notes list"
                 >
                   <PanelLeft size={15} className="text-[var(--accent)] shrink-0" />
@@ -667,9 +673,9 @@ export function NotesView() {
 
   return (
     <div className="flex h-[calc(100vh-140px)] sm:h-[calc(100vh-115px)] flex-col w-full max-w-full overflow-hidden">
-      {/* Mobile Drawer (Slide-over overlay) */}
+      {/* Slide-over Drawer for Folders & Notes */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden" role="dialog" aria-modal="true">
+        <div className="fixed inset-0 z-50 flex" role="dialog" aria-modal="true" aria-label="Folders and notes drawer">
           {/* Dimmed backdrop */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
@@ -696,6 +702,7 @@ export function NotesView() {
                 type="button"
                 onClick={() => setDrawerOpen(false)}
                 className="rounded-lg p-1.5 text-[var(--mut)] hover:bg-[var(--panel2)] hover:text-[var(--text)] transition-colors cursor-pointer"
+                aria-label="Close drawer"
               >
                 <X size={17} />
               </button>
@@ -719,22 +726,8 @@ export function NotesView() {
         </div>
       )}
 
-      {/* Main Container Layout */}
-      <div className="flex min-h-0 flex-1 gap-3 w-full min-w-0">
-        {/* Desktop Folders Column */}
-        <div className="card engine-panel hidden lg:flex flex-col w-[200px] shrink-0 p-1 overflow-hidden">
-          {foldersContent}
-        </div>
-
-        {/* Desktop Notes List Column */}
-        <div className="card engine-panel hidden lg:flex flex-col w-[280px] shrink-0 p-1 overflow-hidden">
-          <div className="p-2 border-b border-[var(--line)]">
-            <SearchInput value={query} onChange={setQuery} placeholder="Search titles…" />
-          </div>
-          {notesListContent}
-        </div>
-
-        {/* Note Canvas (Full View on Mobile & Desktop) */}
+      {/* Main Container Layout: 100% Full Canvas */}
+      <div className="flex min-h-0 flex-1 w-full min-w-0">
         <div className="card engine-panel flex flex-1 min-h-0 flex-col p-3 sm:p-5 w-full min-w-0 overflow-hidden">
           {editor(false)}
         </div>

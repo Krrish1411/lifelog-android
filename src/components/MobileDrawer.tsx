@@ -42,6 +42,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   const [tagsExpanded, setTagsExpanded] = useState(true);
   const [prioritiesExpanded, setPrioritiesExpanded] = useState(false);
 
+  // Editing state for projects
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [projName, setProjName] = useState("");
+  const [projEmoji, setProjEmoji] = useState("📁");
+  const [projColor, setProjColor] = useState("#4fa3a5");
+
+  // Editing state for tags
+  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [tagName, setTagName] = useState("");
+  const [tagColor, setTagColor] = useState("#e8a33d");
+
   if (!open) return null;
 
   const openTasks = state.tasks.filter((t) => !t.done);
@@ -127,16 +138,6 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     toast(`Deleted tag "#${tag}"`, "warn");
   };
 
-  // Editing state for projects
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [projName, setProjName] = useState("");
-  const [projEmoji, setProjEmoji] = useState("📁");
-  const [projColor, setProjColor] = useState("#4fa3a5");
-
-  // Editing state for tags
-  const [editingTag, setEditingTag] = useState<string | null>(null);
-  const [tagName, setTagName] = useState("");
-  const [tagColor, setTagColor] = useState("#e8a33d");
 
   const openEditProject = (e: React.MouseEvent, p: Project) => {
     e.stopPropagation();
